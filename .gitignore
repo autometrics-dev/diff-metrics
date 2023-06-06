@@ -1,0 +1,3 @@
+# lib and node_modules are ignored, because we use ncc to ship everything in a single dist/index.js file
+node_modules
+lib
