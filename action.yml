@@ -1,0 +1,16 @@
+name: 'Autometrics Diff Metrics'
+description: 'Check the difference in autometrics coverage between the source and the target of a Pull Request.'
+author: 'autometrics-dev'
+inputs:
+  gh-token:
+    description: 'Github token to use'
+    required: true
+  rust-roots:
+    description: 'The list of rust project roots to check. One path per line'
+    required: false
+  ts-roots:
+    description: 'The list of typescript project roots to check. One path per line'
+    required: false
+runs:
+  using: 'node16'
+  main: 'dist/index.js'
