@@ -94,6 +94,57 @@ exports.computeDataSet = computeDataSet;
 
 /***/ }),
 
+/***/ 1360:
+/***/ ((__unused_webpack_module, exports) => {
+
+"use strict";
+
+// This handles comparing DataSets, and producing the data model that is going
+// to be exposed as a PR commet
+Object.defineProperty(exports, "__esModule", ({ value: true }));
+exports.diff_dataset_maps = void 0;
+function diff_dataset_maps(head_map, base_map) {
+    var _a;
+    const ret = {};
+    for (const [head_root, head_set] of Object.entries(head_map)) {
+        ret[head_root] = diff_dataset(head_set, (_a = base_map[head_root]) !== null && _a !== void 0 ? _a : { autometricized_functions: [] });
+    }
+    for (const [base_root, base_set] of Object.entries(base_map)) {
+        if (base_root in Object.keys(head_map)) {
+            continue;
+        }
+        ret[base_root] = diff_dataset({ autometricized_functions: [] }, base_set);
+    }
+    return ret;
+}
+exports.diff_dataset_maps = diff_dataset_maps;
+function diff_dataset(head_set, base_set) {
+    const head = to_set(head_set);
+    const base = to_set(base_set);
+    return {
+        newly_autometricized: difference(head, base),
+        no_longer_autometricized: difference(base, head)
+    };
+}
+function to_set(dataset) {
+    const ret = new Set();
+    for (const fn of dataset.autometricized_functions) {
+        ret.add(fn);
+    }
+    return ret;
+}
+// Returns what's in A but not in B
+function difference(setA, setB) {
+    const _difference = new Set(setA);
+    for (const elem of setB) {
+        _difference.delete(elem);
+    }
+    return Array.from(_difference.values());
+}
+
+
+/***/ }),
+
 /***/ 3109:
 /***/ (function(__unused_webpack_module, exports, __nccwpck_require__) {
 
@@ -128,6 +179,7 @@ const github = __importStar(__nccwpck_require__(5438));
 const child_process_1 = __nccwpck_require__(2081);
 const util_1 = __nccwpck_require__(3837);
 const am_list_1 = __nccwpck_require__(409);
+const diff_data_1 = __nccwpck_require__(1360);
 const execAsync = (0, util_1.promisify)(child_process_1.exec);
 const TOKEN = 'gh-token';
 const TS_ROOTS = 'ts-roots';
@@ -152,13 +204,13 @@ async function run() {
         const am_path = await (0, am_list_1.download_am_list)(octokit, AM_LIST_VERSION);
         core.endGroup();
         core.startGroup('[head] Building datasets for head branch');
-        const new_datasets = [];
+        const new_datasets = {};
         // eslint-disable-next-line @typescript-eslint/no-unused-vars
         for (const ts_root of ts_roots) {
             core.warning('Typescript is not supported by am_list yet.');
         }
         for (const rs_root of rs_roots) {
-            new_datasets.push(await (0, am_list_1.computeDataSet)(am_path, rs_root, 'rust'));
+            new_datasets[rs_root] = await (0, am_list_1.computeDataSet)(am_path, rs_root, 'rust');
         }
         core.info(JSON.stringify(new_datasets, undefined, 2));
         core.endGroup();
@@ -192,16 +244,17 @@ async function run() {
         }
         core.endGroup();
         core.startGroup('[base] Building datasets for base branch');
-        const old_datasets = [];
+        const old_datasets = {};
         // eslint-disable-next-line @typescript-eslint/no-unused-vars
         for (const ts_root of ts_roots) {
             core.warning('Typescript is not supported by am_list yet.');
         }
         for (const rs_root of rs_roots) {
-            old_datasets.push(await (0, am_list_1.computeDataSet)(am_path, rs_root, 'rust'));
+            old_datasets[rs_root] = await (0, am_list_1.computeDataSet)(am_path, rs_root, 'rust');
         }
         core.info(JSON.stringify(old_datasets, undefined, 2));
         core.endGroup();
+        const dataset_diff = (0, diff_data_1.diff_dataset_maps)(new_datasets, old_datasets);
         const issueRef = (_h = payload.pull_request) === null || _h === void 0 ? void 0 : _h.number;
         if (!issueRef) {
             core.info('no issue_ref found');
@@ -215,6 +268,7 @@ async function run() {
         const comment = {
             ...commentInfo,
             body: 'Autometrics Compare Metrics\n' +
+                `<details><summary>Differences in Dataset</summary>${JSON.stringify(dataset_diff, undefined, 2)}</details>\n` +
                 `<details><summary>Old Dataset</summary>${JSON.stringify(old_datasets, undefined, 2)}</details>\n` +
                 `<details><summary>New Dataset</summary>${JSON.stringify(new_datasets, undefined, 2)}</details>\n`
         };

@@ -2,7 +2,8 @@ import * as core from '@actions/core'
 import * as github from '@actions/github'
 import {exec} from 'child_process'
 import {promisify} from 'util'
-import {DataSet, computeDataSet, download_am_list} from './am_list'
+import {DataSetMap, computeDataSet, download_am_list} from './am_list'
+import {diff_dataset_maps} from './diff_data'
 
 const execAsync = promisify(exec)
 
@@ -36,14 +37,14 @@ async function run(): Promise<void> {
     core.endGroup()
 
     core.startGroup('[head] Building datasets for head branch')
-    const new_datasets: DataSet[] = []
+    const new_datasets: DataSetMap = {}
 
     // eslint-disable-next-line @typescript-eslint/no-unused-vars
     for (const ts_root of ts_roots) {
       core.warning('Typescript is not supported by am_list yet.')
     }
     for (const rs_root of rs_roots) {
-      new_datasets.push(await computeDataSet(am_path, rs_root, 'rust'))
+      new_datasets[rs_root] = await computeDataSet(am_path, rs_root, 'rust')
     }
 
     core.info(JSON.stringify(new_datasets, undefined, 2))
@@ -77,18 +78,20 @@ async function run(): Promise<void> {
     core.endGroup()
 
     core.startGroup('[base] Building datasets for base branch')
-    const old_datasets: DataSet[] = []
+    const old_datasets: DataSetMap = {}
 
     // eslint-disable-next-line @typescript-eslint/no-unused-vars
     for (const ts_root of ts_roots) {
       core.warning('Typescript is not supported by am_list yet.')
     }
     for (const rs_root of rs_roots) {
-      old_datasets.push(await computeDataSet(am_path, rs_root, 'rust'))
+      old_datasets[rs_root] = await computeDataSet(am_path, rs_root, 'rust')
     }
 
     core.info(JSON.stringify(old_datasets, undefined, 2))
     core.endGroup()
+
+    const dataset_diff = diff_dataset_maps(new_datasets, old_datasets)
 
     const issueRef = payload.pull_request?.number
     if (!issueRef) {
@@ -105,6 +108,11 @@ async function run(): Promise<void> {
       ...commentInfo,
       body:
         'Autometrics Compare Metrics\n' +
+        `<details><summary>Differences in Dataset</summary>${JSON.stringify(
+          dataset_diff,
+          undefined,
+          2
+        )}</details>\n` +
         `<details><summary>Old Dataset</summary>${JSON.stringify(
           old_datasets,
           undefined,
