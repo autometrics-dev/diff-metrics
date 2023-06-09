@@ -75,6 +75,8 @@ async function run(): Promise<void> {
         }
       }
     }
+    // Remove any leftover files (new files added in the PR)
+    await execAsync(`git reset --hard`)
     core.endGroup()
 
     core.startGroup('[base] Building datasets for base branch')
