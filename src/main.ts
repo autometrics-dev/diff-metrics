@@ -4,6 +4,7 @@ import {exec} from 'child_process'
 import {promisify} from 'util'
 import {DataSetMap, computeDataSet, download_am_list} from './am_list'
 import {diff_dataset_maps} from './diff_data'
+import {update_or_post_comment} from './comment_pr'
 
 const execAsync = promisify(exec)
 
@@ -112,90 +113,12 @@ async function run(): Promise<void> {
     }
     core.startGroup(`Post comment on PR ${issueRef}`)
 
-    const commentInfo = {
-      ...github.context.repo,
-      issue_number: issueRef
-    }
-    const comment = {
-      ...commentInfo,
-      body:
-        'Autometrics Compare Metrics\n' +
-        `<details><summary>Differences in Dataset</summary>${JSON.stringify(
-          dataset_diff,
-          undefined,
-          2
-        )}</details>\n` +
-        `<details><summary>Old Dataset</summary>${JSON.stringify(
-          old_datasets,
-          undefined,
-          2
-        )}</details>\n` +
-        `<details><summary>New Dataset</summary>${JSON.stringify(
-          new_datasets,
-          undefined,
-          2
-        )}</details>\n`
-    }
+    await update_or_post_comment(octokit, github.context, {
+      old: old_datasets,
+      new: new_datasets,
+      diff: dataset_diff
+    })
 
-    let commentId
-    try {
-      const comments = (await octokit.rest.issues.listComments(commentInfo))
-        .data
-      for (let i = comments.length; i--; ) {
-        const c = comments[i]
-        if (
-          c.user?.type === 'Bot' &&
-          (c.body ?? '').includes('Autometrics Compare Metrics')
-        ) {
-          commentId = c.id
-          break
-        }
-      }
-    } catch (_ee) {
-      const ee: Error = _ee as Error
-      core.error(`Error checking for previous comments: ${ee.message}`)
-    }
-
-    if (commentId) {
-      core.info(`Updating previous comment #${commentId}`)
-      try {
-        await octokit.rest.issues.updateComment({
-          ...github.context.repo,
-          comment_id: commentId,
-          body: comment.body
-        })
-      } catch (_ee) {
-        const ee: Error = _ee as Error
-        core.error(`Error editing previous comment: ${ee.message}`)
-        commentId = null
-      }
-    }
-
-    if (!commentId) {
-      core.info('Creating new comment')
-      try {
-        await octokit.rest.issues.createComment(comment)
-      } catch (_e) {
-        const e: Error = _e as Error
-        core.error(`Error creating comment: ${e.message}`)
-        core.info(`Submitting a PR review comment instead...`)
-        try {
-          const issue =
-            github.context.issue || github.context.payload.pull_request
-          await octokit.rest.pulls.createReview({
-            owner: issue.owner,
-            repo: issue.repo,
-            pull_number: issue.number,
-            event: 'COMMENT',
-            body: comment.body
-          })
-        } catch (_ee) {
-          const ee: Error = _ee as Error
-          core.error('Error creating PR review.')
-          throw ee
-        }
-      }
-    }
     core.endGroup()
   } catch (_e) {
     const e: Error = _e as Error

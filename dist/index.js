@@ -94,6 +94,188 @@ exports.computeDataSet = computeDataSet;
 
 /***/ }),
 
+/***/ 4716:
+/***/ (function(__unused_webpack_module, exports, __nccwpck_require__) {
+
+"use strict";
+
+// This handles taking a list of data models that describe the difference between datasets,
+// and post the information as a comment on the PR the workflow has been triggered for.
+var __createBinding = (this && this.__createBinding) || (Object.create ? (function(o, m, k, k2) {
+    if (k2 === undefined) k2 = k;
+    var desc = Object.getOwnPropertyDescriptor(m, k);
+    if (!desc || ("get" in desc ? !m.__esModule : desc.writable || desc.configurable)) {
+      desc = { enumerable: true, get: function() { return m[k]; } };
+    }
+    Object.defineProperty(o, k2, desc);
+}) : (function(o, m, k, k2) {
+    if (k2 === undefined) k2 = k;
+    o[k2] = m[k];
+}));
+var __setModuleDefault = (this && this.__setModuleDefault) || (Object.create ? (function(o, v) {
+    Object.defineProperty(o, "default", { enumerable: true, value: v });
+}) : function(o, v) {
+    o["default"] = v;
+});
+var __importStar = (this && this.__importStar) || function (mod) {
+    if (mod && mod.__esModule) return mod;
+    var result = {};
+    if (mod != null) for (var k in mod) if (k !== "default" && Object.prototype.hasOwnProperty.call(mod, k)) __createBinding(result, mod, k);
+    __setModuleDefault(result, mod);
+    return result;
+};
+Object.defineProperty(exports, "__esModule", ({ value: true }));
+exports.update_or_post_comment = void 0;
+const core = __importStar(__nccwpck_require__(2186));
+const COMMENT_HEADER = '<i>Autometrics Compare Metrics</i>';
+const COMMENT_FOOTER = '\n\n<a href="https://github.com/autometrics-dev/diff-metrics"><sub>Autometrics diff-metrics</sub></a>';
+async function update_or_post_comment(octokit, context, stats) {
+    var _a, _b, _c;
+    const issue_number = ((_a = context.payload.pull_request) === null || _a === void 0 ? void 0 : _a.number) || 0;
+    const commentInfo = {
+        ...context.repo,
+        issue_number
+    };
+    const comment = {
+        ...commentInfo,
+        body: format_comment(stats, context.repo.repo)
+    };
+    let commentId;
+    try {
+        const comments = (await octokit.rest.issues.listComments(commentInfo)).data;
+        for (let i = comments.length; i--;) {
+            const c = comments[i];
+            if (((_b = c.user) === null || _b === void 0 ? void 0 : _b.type) === 'Bot' && ((_c = c.body) !== null && _c !== void 0 ? _c : '').includes(COMMENT_FOOTER)) {
+                commentId = c.id;
+                break;
+            }
+        }
+    }
+    catch (_ee) {
+        const ee = _ee;
+        core.error(`Error checking for previous comments: ${ee.message}`);
+    }
+    if (commentId) {
+        core.info(`Updating previous comment #${commentId}`);
+        try {
+            await octokit.rest.issues.updateComment({
+                ...context.repo,
+                comment_id: commentId,
+                body: comment.body
+            });
+        }
+        catch (_ee) {
+            const ee = _ee;
+            core.error(`Error editing previous comment: ${ee.message}`);
+            commentId = null;
+        }
+    }
+    if (!commentId) {
+        core.info('Creating new comment');
+        try {
+            await octokit.rest.issues.createComment(comment);
+        }
+        catch (_e) {
+            const e = _e;
+            core.error(`Error creating comment: ${e.message}`);
+            core.info(`Submitting a PR review comment instead...`);
+            try {
+                const issue = context.issue || context.payload.pull_request;
+                await octokit.rest.pulls.createReview({
+                    owner: issue.owner,
+                    repo: issue.repo,
+                    pull_number: issue.number,
+                    event: 'COMMENT',
+                    body: comment.body
+                });
+            }
+            catch (_ee) {
+                const ee = _ee;
+                core.error('Error creating PR review.');
+                throw ee;
+            }
+        }
+    }
+}
+exports.update_or_post_comment = update_or_post_comment;
+function format_comment(stats, repo_name) {
+    return (`${COMMENT_HEADER}\n` +
+        `<details><summary>Differences in Dataset</summary>${format_diff_map(stats.diff, repo_name)}</details>\n` +
+        `<details><summary>Old Dataset</summary>${format_dataset_map(stats.old, repo_name)}</details>\n` +
+        `<details><summary>New Dataset</summary>${format_dataset_map(stats.new, repo_name)}</details>\n` +
+        `${COMMENT_FOOTER}`);
+}
+function format_root(root, repo_name) {
+    if (root.startsWith('.')) {
+        return repo_name + root.substring(1);
+    }
+    return root;
+}
+function format_diff_map(diff, repo_name) {
+    if (Object.entries(diff).length === 0) {
+        return 'No data to report\n';
+    }
+    let ret = '';
+    for (const [root, diff_item] of Object.entries(diff)) {
+        ret = `${ret}${format_root(root, repo_name)}\n\n`;
+        ret = `${ret}${format_diff_table(diff_item)}\n\n`;
+    }
+    return ret;
+}
+function format_diff_table(diff) {
+    let ret = '';
+    if (diff.newly_autometricized.length !== 0) {
+        ret = `${ret}Newly annotated functions\n\n`;
+        ret = ret + table_am_function_list(diff.newly_autometricized);
+    }
+    else {
+        ret = `${ret}No newly annotated function to report here.\n\n`;
+    }
+    if (diff.no_longer_autometricized.length !== 0) {
+        ret = `${ret}No longer annotated functions\n\n`;
+        ret = ret + table_am_function_list(diff.no_longer_autometricized);
+    }
+    else {
+        ret = `${ret}No function that is no longer annotated to report here.\n\n`;
+    }
+    return ret;
+}
+function format_dataset_map(stat_map, repo_name) {
+    if (Object.entries(stat_map).length === 0) {
+        return 'No data to report\n';
+    }
+    let ret = '';
+    for (const [root, dataset] of Object.entries(stat_map)) {
+        ret = `${ret}${format_root(root, repo_name)}\n\n`;
+        ret = `${ret}${format_dataset(dataset)}\n\n`;
+    }
+    return ret;
+}
+function format_dataset(dataset) {
+    let ret = '';
+    if (dataset.autometricized_functions.length !== 0) {
+        ret = `${ret}Annotated functions\n\n`;
+        ret = ret + table_am_function_list(dataset.autometricized_functions);
+    }
+    else {
+        ret = `${ret}No annotated function to report.\n\n`;
+    }
+    return ret;
+}
+function table_am_function_list(list) {
+    let ret = '';
+    ret = `${ret}|Module|Function|\n`;
+    ret = `${ret}|------|--------|\n`;
+    for (const fn of list) {
+        ret = `${ret}|${fn.module}|${fn.function}|\n`;
+    }
+    ret = `${ret}\n`;
+    return ret;
+}
+
+
+/***/ }),
+
 /***/ 1360:
 /***/ ((__unused_webpack_module, exports) => {
 
@@ -186,13 +368,14 @@ const child_process_1 = __nccwpck_require__(2081);
 const util_1 = __nccwpck_require__(3837);
 const am_list_1 = __nccwpck_require__(409);
 const diff_data_1 = __nccwpck_require__(1360);
+const comment_pr_1 = __nccwpck_require__(4716);
 const execAsync = (0, util_1.promisify)(child_process_1.exec);
 const TOKEN = 'gh-token';
 const TS_ROOTS = 'ts-roots';
 const RS_ROOTS = 'rust-roots';
 const AM_LIST_VERSION = 'v0.2.0';
 async function run() {
-    var _a, _b, _c, _d, _f, _g, _h, _j, _k;
+    var _a, _b, _c, _d, _f, _g, _h;
     try {
         core.startGroup('Event payload content');
         const payload = github.context.payload;
@@ -278,75 +461,11 @@ async function run() {
             return;
         }
         core.startGroup(`Post comment on PR ${issueRef}`);
-        const commentInfo = {
-            ...github.context.repo,
-            issue_number: issueRef
-        };
-        const comment = {
-            ...commentInfo,
-            body: 'Autometrics Compare Metrics\n' +
-                `<details><summary>Differences in Dataset</summary>${JSON.stringify(dataset_diff, undefined, 2)}</details>\n` +
-                `<details><summary>Old Dataset</summary>${JSON.stringify(old_datasets, undefined, 2)}</details>\n` +
-                `<details><summary>New Dataset</summary>${JSON.stringify(new_datasets, undefined, 2)}</details>\n`
-        };
-        let commentId;
-        try {
-            const comments = (await octokit.rest.issues.listComments(commentInfo))
-                .data;
-            for (let i = comments.length; i--;) {
-                const c = comments[i];
-                if (((_j = c.user) === null || _j === void 0 ? void 0 : _j.type) === 'Bot' &&
-                    ((_k = c.body) !== null && _k !== void 0 ? _k : '').includes('Autometrics Compare Metrics')) {
-                    commentId = c.id;
-                    break;
-                }
-            }
-        }
-        catch (_ee) {
-            const ee = _ee;
-            core.error(`Error checking for previous comments: ${ee.message}`);
-        }
-        if (commentId) {
-            core.info(`Updating previous comment #${commentId}`);
-            try {
-                await octokit.rest.issues.updateComment({
-                    ...github.context.repo,
-                    comment_id: commentId,
-                    body: comment.body
-                });
-            }
-            catch (_ee) {
-                const ee = _ee;
-                core.error(`Error editing previous comment: ${ee.message}`);
-                commentId = null;
-            }
-        }
-        if (!commentId) {
-            core.info('Creating new comment');
-            try {
-                await octokit.rest.issues.createComment(comment);
-            }
-            catch (_e) {
-                const e = _e;
-                core.error(`Error creating comment: ${e.message}`);
-                core.info(`Submitting a PR review comment instead...`);
-                try {
-                    const issue = github.context.issue || github.context.payload.pull_request;
-                    await octokit.rest.pulls.createReview({
-                        owner: issue.owner,
-                        repo: issue.repo,
-                        pull_number: issue.number,
-                        event: 'COMMENT',
-                        body: comment.body
-                    });
-                }
-                catch (_ee) {
-                    const ee = _ee;
-                    core.error('Error creating PR review.');
-                    throw ee;
-                }
-            }
-        }
+        await (0, comment_pr_1.update_or_post_comment)(octokit, github.context, {
+            old: old_datasets,
+            new: new_datasets,
+            diff: dataset_diff
+        });
         core.endGroup();
     }
     catch (_e) {
