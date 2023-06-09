@@ -200,7 +200,9 @@ async function update_or_post_comment(octokit, context, stats) {
 exports.update_or_post_comment = update_or_post_comment;
 function format_comment(stats, repo_name) {
     const header = `${COMMENT_HEADER}\n${format_summary(stats.diff)}`;
-    if (Object.entries(stats.diff).length === 0) {
+    if (Object.entries(stats.diff).length === 0 ||
+        Object.values(stats.diff).every(dataset_diff => dataset_diff.newly_autometricized.length === 0 &&
+            dataset_diff.no_longer_autometricized.length === 0)) {
         return `${header}\n${COMMENT_FOOTER}`;
     }
     return (`${header}\n` +
@@ -216,7 +218,9 @@ function format_root(root, repo_name) {
     return root;
 }
 function format_summary(diff) {
-    if (Object.entries(diff).length === 0) {
+    if (Object.entries(diff).length === 0 ||
+        Object.values(diff).every(dataset_diff => dataset_diff.newly_autometricized.length === 0 &&
+            dataset_diff.no_longer_autometricized.length === 0)) {
         return 'No change\n';
     }
     let additions = 0;
