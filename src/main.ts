@@ -51,8 +51,9 @@ async function run(): Promise<void> {
     core.endGroup()
 
     core.startGroup('[base] Checking out base branch')
+    const baseRef = payload.pull_request?.base.ref
+    const baseSha = payload.pull_request?.base.sha
     try {
-      const baseRef = payload.pull_request?.base.ref
       if (!baseRef) throw Error('missing context.payload.pull_request.base.ref')
       await execAsync(`git fetch -n origin ${baseRef}`)
       core.info('successfully fetched base.ref')
@@ -61,7 +62,6 @@ async function run(): Promise<void> {
       core.error(`fetching base.ref failed: ${e1.message}`)
 
       try {
-        const baseSha = payload.pull_request?.base.sha
         await execAsync(`git fetch -n origin ${baseSha}`)
         core.info('successfully fetched base.sha')
       } catch (_e2) {
@@ -75,8 +75,18 @@ async function run(): Promise<void> {
         }
       }
     }
+
     // Remove any leftover files (new files added in the PR)
-    await execAsync(`git reset --hard`)
+    try {
+      if (!baseRef) throw Error('missing context.payload.base.ref')
+      await execAsync(`git reset --hard ${baseRef}`)
+    } catch (e) {
+      if (!baseSha)
+        throw Error(
+          'Cannot checkout the base state of the repo: missing context.payload.base.ref _and_ context.payload.base.sha'
+        )
+      await execAsync(`git reset --hard ${baseSha}`)
+    }
     core.endGroup()
 
     core.startGroup('[base] Building datasets for base branch')
