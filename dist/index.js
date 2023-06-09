@@ -199,8 +199,12 @@ async function update_or_post_comment(octokit, context, stats) {
 }
 exports.update_or_post_comment = update_or_post_comment;
 function format_comment(stats, repo_name) {
-    return (`${COMMENT_HEADER}\n` +
-        `<details><summary>Differences in Dataset</summary>${format_diff_map(stats.diff, repo_name)}</details>\n` +
+    const header = `${COMMENT_HEADER}\n${format_summary(stats.diff)}`;
+    if (Object.entries(stats.diff).length === 0) {
+        return `${header}\n${COMMENT_FOOTER}`;
+    }
+    return (`${header}\n` +
+        `<details><summary>Differences in Datasets</summary>${format_diff_map(stats.diff, repo_name)}</details>\n` +
         `<details><summary>Old Dataset</summary>${format_dataset_map(stats.old, repo_name)}</details>\n` +
         `<details><summary>New Dataset</summary>${format_dataset_map(stats.new, repo_name)}</details>\n` +
         `${COMMENT_FOOTER}`);
@@ -211,13 +215,30 @@ function format_root(root, repo_name) {
     }
     return root;
 }
+function format_summary(diff) {
+    if (Object.entries(diff).length === 0) {
+        return 'No change\n';
+    }
+    let additions = 0;
+    let removals = 0;
+    for (const [, diff_item] of Object.entries(diff)) {
+        additions += diff_item.newly_autometricized.length;
+        removals += diff_item.no_longer_autometricized.length;
+    }
+    if (additions >= removals) {
+        return `${additions - removals} metrics added (+${additions} / -${removals})`;
+    }
+    else {
+        return `${removals - additions} metrics removed (+${additions} / -${removals})`;
+    }
+}
 function format_diff_map(diff, repo_name) {
     if (Object.entries(diff).length === 0) {
         return 'No data to report\n';
     }
     let ret = '';
     for (const [root, diff_item] of Object.entries(diff)) {
-        ret = `${ret}${format_root(root, repo_name)}\n\n`;
+        ret = `${ret}In \`${format_root(root, repo_name)}\`\n\n`;
         ret = `${ret}${format_diff_table(diff_item)}\n\n`;
     }
     return ret;
@@ -225,14 +246,14 @@ function format_diff_map(diff, repo_name) {
 function format_diff_table(diff) {
     let ret = '';
     if (diff.newly_autometricized.length !== 0) {
-        ret = `${ret}Newly annotated functions\n\n`;
+        ret = `${ret} ![Green square](https://placehold.co/15x15/c5f015/c5f015.png) Newly annotated functions\n\n`;
         ret = ret + table_am_function_list(diff.newly_autometricized);
     }
     else {
         ret = `${ret}No newly annotated function to report here.\n\n`;
     }
     if (diff.no_longer_autometricized.length !== 0) {
-        ret = `${ret}No longer annotated functions\n\n`;
+        ret = `${ret} ![Red square](https://placehold.co/15x15/f03c15/f03c15.png) No longer annotated functions\n\n`;
         ret = ret + table_am_function_list(diff.no_longer_autometricized);
     }
     else {
@@ -246,7 +267,7 @@ function format_dataset_map(stat_map, repo_name) {
     }
     let ret = '';
     for (const [root, dataset] of Object.entries(stat_map)) {
-        ret = `${ret}${format_root(root, repo_name)}\n\n`;
+        ret = `${ret}In \`${format_root(root, repo_name)}\`\n\n`;
         ret = `${ret}${format_dataset(dataset)}\n\n`;
     }
     return ret;
@@ -383,6 +404,10 @@ async function run() {
         core.warning(`The head ref is ${(_a = payload.pull_request) === null || _a === void 0 ? void 0 : _a.head.ref} (${(_b = payload.pull_request) === null || _b === void 0 ? void 0 : _b.head.sha})`);
         core.warning(`The base ref is ${(_c = payload.pull_request) === null || _c === void 0 ? void 0 : _c.base.ref} (${(_d = payload.pull_request) === null || _d === void 0 ? void 0 : _d.base.sha})`);
         core.endGroup();
+        if (!payload.pull_request) {
+            core.warning('Autometrics-dev/diff-metrics works only on Pull Request events.');
+            return;
+        }
         const token = core.getInput(TOKEN);
         const octokit = github.getOctokit(token, {
             userAgent: 'Autometrics/diff-metrics v1'

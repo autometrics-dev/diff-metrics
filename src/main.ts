@@ -26,6 +26,13 @@ async function run(): Promise<void> {
     )
     core.endGroup()
 
+    if (!payload.pull_request) {
+      core.warning(
+        'Autometrics-dev/diff-metrics works only on Pull Request events.'
+      )
+      return
+    }
+
     const token = core.getInput(TOKEN)
     const octokit = github.getOctokit(token, {
       userAgent: 'Autometrics/diff-metrics v1'
