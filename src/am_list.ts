@@ -25,6 +25,10 @@ export type DataSet = {
   autometricized_functions: AmFunction[]
 }
 
+export type DataSetMap = {
+  [root: string]: DataSet
+}
+
 export type Language = 'rust' | 'typescript' | 'go'
 
 export async function download_am_list(
