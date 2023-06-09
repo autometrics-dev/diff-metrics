@@ -89,9 +89,15 @@ export async function update_or_post_comment(
 }
 
 function format_comment(stats: DiffStats, repo_name: string): string {
+  const header = `${COMMENT_HEADER}\n${format_summary(stats.diff)}`
+
+  if (Object.entries(stats.diff).length === 0) {
+    return `${header}\n${COMMENT_FOOTER}`
+  }
+
   return (
-    `${COMMENT_HEADER}\n` +
-    `<details><summary>Differences in Dataset</summary>${format_diff_map(
+    `${header}\n` +
+    `<details><summary>Differences in Datasets</summary>${format_diff_map(
       stats.diff,
       repo_name
     )}</details>\n` +
@@ -115,13 +121,35 @@ function format_root(root: string, repo_name: string): string {
   return root
 }
 
+function format_summary(diff: DataSetDiffMap): string {
+  if (Object.entries(diff).length === 0) {
+    return 'No change\n'
+  }
+  let additions = 0
+  let removals = 0
+  for (const [, diff_item] of Object.entries(diff)) {
+    additions += diff_item.newly_autometricized.length
+    removals += diff_item.no_longer_autometricized.length
+  }
+
+  if (additions >= removals) {
+    return `${
+      additions - removals
+    } metrics added (+${additions} / -${removals})`
+  } else {
+    return `${
+      removals - additions
+    } metrics removed (+${additions} / -${removals})`
+  }
+}
+
 function format_diff_map(diff: DataSetDiffMap, repo_name: string): string {
   if (Object.entries(diff).length === 0) {
     return 'No data to report\n'
   }
   let ret = ''
   for (const [root, diff_item] of Object.entries(diff)) {
-    ret = `${ret}${format_root(root, repo_name)}\n\n`
+    ret = `${ret}In \`${format_root(root, repo_name)}\`\n\n`
     ret = `${ret}${format_diff_table(diff_item)}\n\n`
   }
 
@@ -131,13 +159,13 @@ function format_diff_map(diff: DataSetDiffMap, repo_name: string): string {
 function format_diff_table(diff: DataSetDiff): string {
   let ret = ''
   if (diff.newly_autometricized.length !== 0) {
-    ret = `${ret}Newly annotated functions\n\n`
+    ret = `${ret} ![Green square](https://placehold.co/15x15/c5f015/c5f015.png) Newly annotated functions\n\n`
     ret = ret + table_am_function_list(diff.newly_autometricized)
   } else {
     ret = `${ret}No newly annotated function to report here.\n\n`
   }
   if (diff.no_longer_autometricized.length !== 0) {
-    ret = `${ret}No longer annotated functions\n\n`
+    ret = `${ret} ![Red square](https://placehold.co/15x15/f03c15/f03c15.png) No longer annotated functions\n\n`
     ret = ret + table_am_function_list(diff.no_longer_autometricized)
   } else {
     ret = `${ret}No function that is no longer annotated to report here.\n\n`
@@ -152,7 +180,7 @@ function format_dataset_map(stat_map: DataSetMap, repo_name: string): string {
   }
   let ret = ''
   for (const [root, dataset] of Object.entries(stat_map)) {
-    ret = `${ret}${format_root(root, repo_name)}\n\n`
+    ret = `${ret}In \`${format_root(root, repo_name)}\`\n\n`
     ret = `${ret}${format_dataset(dataset)}\n\n`
   }
 
