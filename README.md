@@ -2,13 +2,26 @@
 
 <!-- Put a screen shot of the PR comment here. -->
 
-<!-- Put a language support table here. -->
-
-- [ ] Is the GITHUB_TOKEN enough to be able to post PR comments (ie issue comments)?
+<!-- Put a language support table here. Or at least mention that it's mostly driven by am_list -->
 
 ## Inputs
 
+- `gh-token`: a github token that gives access to
+  + the PR
+  + the repo
+  + read/write access to comments on issues/PR
+
+The permissions added in the
+"Example Usage" section allow to use the built-in `${{ secrets.GITHUB_TOKEN }}`
+directly for that.
+- `rs-roots`: a list of project roots for rust projects, one root per line.
+  The values are given relative to the root of the repository, and should
+  point to the directory containing the `Cargo.toml` directory.
+
 ## Outputs
+
+This action has no programmatic output to use in further steps. It only writes
+its output as a comment to the PR.
 
 ## Example Usage
 
@@ -37,7 +50,7 @@ jobs:
     - uses: actions/checkout@v3
     - uses: autometrics-dev/diff-metrics@v1
       with:
-        gh_token: ${{ secrets.GITHUB_TOKEN }}
+        gh-token: ${{ secrets.GITHUB_TOKEN }}
         rust-roots: |
           .
 ```
@@ -67,7 +80,7 @@ The step using diff-metrics would look like this:
 ```yaml
 uses: autometrics-dev/diff-metrics@v1
 with:
-  gh_token: ${{ secrets.GITHUB_TOKEN }}
+  gh-token: ${{ secrets.GITHUB_TOKEN }}
   rust-roots: |
     project-a
     project-b
