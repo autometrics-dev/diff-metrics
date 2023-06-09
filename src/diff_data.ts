@@ -25,7 +25,7 @@ export function diff_dataset_maps(
   }
 
   for (const [base_root, base_set] of Object.entries(base_map)) {
-    if (base_root in Object.keys(head_map)) {
+    if (head_map[base_root]) {
       continue
     }
     ret[base_root] = diff_dataset({autometricized_functions: []}, base_set)
@@ -34,7 +34,10 @@ export function diff_dataset_maps(
   return ret
 }
 
-function diff_dataset(head_set: DataSet, base_set: DataSet): DataSetDiff {
+export function diff_dataset(
+  head_set: DataSet,
+  base_set: DataSet
+): DataSetDiff {
   const head = to_set(head_set)
   const base = to_set(base_set)
   return {
@@ -43,19 +46,24 @@ function diff_dataset(head_set: DataSet, base_set: DataSet): DataSetDiff {
   }
 }
 
-function to_set(dataset: DataSet): Set<AmFunction> {
-  const ret = new Set<AmFunction>()
+function to_set(dataset: DataSet): Set<string> {
+  const ret = new Set<string>()
   for (const fn of dataset.autometricized_functions) {
-    ret.add(fn)
+    ret.add(JSON.stringify(fn))
   }
   return ret
 }
 
 // Returns what's in A but not in B
-function difference<T>(setA: Set<T>, setB: Set<T>): T[] {
+// This function should not be public because of the unsafe typecasting it does in the JSON.parse call.
+function difference(setA: Set<string>, setB: Set<string>): AmFunction[] {
   const _difference = new Set(setA)
   for (const elem of setB) {
     _difference.delete(elem)
   }
-  return Array.from(_difference.values())
+  const ret: AmFunction[] = []
+  for (const fn of _difference.values()) {
+    ret.push(JSON.parse(fn))
+  }
+  return ret
 }

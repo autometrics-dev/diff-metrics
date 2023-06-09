@@ -102,7 +102,7 @@ exports.computeDataSet = computeDataSet;
 // This handles comparing DataSets, and producing the data model that is going
 // to be exposed as a PR commet
 Object.defineProperty(exports, "__esModule", ({ value: true }));
-exports.diff_dataset_maps = void 0;
+exports.diff_dataset = exports.diff_dataset_maps = void 0;
 function diff_dataset_maps(head_map, base_map) {
     var _a;
     const ret = {};
@@ -110,7 +110,7 @@ function diff_dataset_maps(head_map, base_map) {
         ret[head_root] = diff_dataset(head_set, (_a = base_map[head_root]) !== null && _a !== void 0 ? _a : { autometricized_functions: [] });
     }
     for (const [base_root, base_set] of Object.entries(base_map)) {
-        if (base_root in Object.keys(head_map)) {
+        if (head_map[base_root]) {
             continue;
         }
         ret[base_root] = diff_dataset({ autometricized_functions: [] }, base_set);
@@ -126,20 +126,26 @@ function diff_dataset(head_set, base_set) {
         no_longer_autometricized: difference(base, head)
     };
 }
+exports.diff_dataset = diff_dataset;
 function to_set(dataset) {
     const ret = new Set();
     for (const fn of dataset.autometricized_functions) {
-        ret.add(fn);
+        ret.add(JSON.stringify(fn));
     }
     return ret;
 }
 // Returns what's in A but not in B
+// This function should not be public because of the unsafe typecasting it does in the JSON.parse call.
 function difference(setA, setB) {
     const _difference = new Set(setA);
     for (const elem of setB) {
         _difference.delete(elem);
     }
-    return Array.from(_difference.values());
+    const ret = [];
+    for (const fn of _difference.values()) {
+        ret.push(JSON.parse(fn));
+    }
+    return ret;
 }
 
 
@@ -242,6 +248,8 @@ async function run() {
                 }
             }
         }
+        // Remove any leftover files (new files added in the PR)
+        await execAsync(`git reset --hard`);
         core.endGroup();
         core.startGroup('[base] Building datasets for base branch');
         const old_datasets = {};
