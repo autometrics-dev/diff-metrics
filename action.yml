@@ -1,6 +1,9 @@
 name: 'Autometrics Diff Metrics'
 description: 'Check the difference in autometrics coverage between the source and the target of a Pull Request.'
 author: 'autometrics-dev'
+branding:
+  icon: 'bar-chart'
+  color: 'purple'
 inputs:
   gh-token:
     description: 'Github token to use'
