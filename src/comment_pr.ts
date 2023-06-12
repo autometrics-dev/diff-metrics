@@ -7,7 +7,7 @@ import {DataSetDiff, DataSetDiffMap} from './diff_data'
 import {AmFunction, DataSet, DataSetMap} from './am_list'
 import {Context} from '@actions/github/lib/context'
 
-const COMMENT_HEADER = '<i>Autometrics Compare Metrics</i>'
+const COMMENT_HEADER = '# <i>Autometrics Compare Metrics</i>'
 const COMMENT_FOOTER =
   '\n\n<a href="https://github.com/autometrics-dev/diff-metrics"><sub>Autometrics diff-metrics</sub></a>'
 
@@ -104,15 +104,13 @@ function format_comment(stats: DiffStats, repo_name: string): string {
 
   return (
     `${header}\n` +
-    `<details><summary>Differences in Datasets</summary>${format_diff_map(
-      stats.diff,
-      repo_name
-    )}</details>\n` +
-    `<details><summary>Old Dataset</summary>${format_dataset_map(
+    `## Differences in Datasets\n${format_diff_map(stats.diff, repo_name)}\n` +
+    '## Details\n' +
+    `<details><summary>Old Dataset</summary>\n${format_dataset_map(
       stats.old,
       repo_name
     )}</details>\n` +
-    `<details><summary>New Dataset</summary>${format_dataset_map(
+    `<details><summary>New Dataset</summary>\n${format_dataset_map(
       stats.new,
       repo_name
     )}</details>\n` +
@@ -214,14 +212,39 @@ function format_dataset(dataset: DataSet): string {
   return ret
 }
 
-function table_am_function_list(list: AmFunction[]): string {
-  let ret = ''
-  ret = `${ret}|Module|Function|\n`
-  ret = `${ret}|------|--------|\n`
-  for (const fn of list) {
-    ret = `${ret}|${fn.module}|${fn.function}|\n`
+function table_am_function_list(
+  list: AmFunction[],
+  force_single_table?: boolean
+): string {
+  const PER_MODULE_TABLES_THRESHOLD = 10
+  if (list.length < PER_MODULE_TABLES_THRESHOLD || force_single_table) {
+    let ret = ''
+
+    ret = `${ret}|Module|Function|\n`
+    ret = `${ret}|------|--------|\n`
+    for (const fn of list) {
+      ret = `${ret}|${fn.module}|${fn.function}|\n`
+    }
+    ret = `${ret}\n`
+
+    return ret
   }
-  ret = `${ret}\n`
+
+  let ret = ''
+
+  const per_module_fn_list: {[module: string]: AmFunction[]} = {}
+  for (const fn of list) {
+    if (!per_module_fn_list.hasOwnProperty(fn.module)) {
+      per_module_fn_list[fn.module] = []
+    }
+
+    per_module_fn_list[fn.module].push(fn)
+  }
+
+  for (const [module_name, module_list] of Object.entries(per_module_fn_list)) {
+    ret = `${ret}Module ${module_name}:\n`
+    ret = `${ret}${table_am_function_list(module_list, true)}\n`
+  }
 
   return ret
 }

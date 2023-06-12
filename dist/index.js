@@ -42,7 +42,7 @@ const decompress_1 = __importDefault(__nccwpck_require__(9350));
 const child_process_1 = __nccwpck_require__(2081);
 const util_1 = __nccwpck_require__(3837);
 const execAsync = (0, util_1.promisify)(child_process_1.exec);
-const OWNER = 'gagbo';
+const OWNER = 'autometrics-dev';
 const REPO = 'am_list';
 const ASSET_NAME = 'am_list-x86_64-unknown-linux-gnu.tar.gz';
 const ARCHIVE_NAME = 'am_list-x86_64-unknown-linux-gnu';
@@ -127,7 +127,7 @@ var __importStar = (this && this.__importStar) || function (mod) {
 Object.defineProperty(exports, "__esModule", ({ value: true }));
 exports.update_or_post_comment = void 0;
 const core = __importStar(__nccwpck_require__(2186));
-const COMMENT_HEADER = '<i>Autometrics Compare Metrics</i>';
+const COMMENT_HEADER = '# <i>Autometrics Compare Metrics</i>';
 const COMMENT_FOOTER = '\n\n<a href="https://github.com/autometrics-dev/diff-metrics"><sub>Autometrics diff-metrics</sub></a>';
 async function update_or_post_comment(octokit, context, stats) {
     var _a, _b, _c;
@@ -206,9 +206,10 @@ function format_comment(stats, repo_name) {
         return `${header}\n${COMMENT_FOOTER}`;
     }
     return (`${header}\n` +
-        `<details><summary>Differences in Datasets</summary>${format_diff_map(stats.diff, repo_name)}</details>\n` +
-        `<details><summary>Old Dataset</summary>${format_dataset_map(stats.old, repo_name)}</details>\n` +
-        `<details><summary>New Dataset</summary>${format_dataset_map(stats.new, repo_name)}</details>\n` +
+        `## Differences in Datasets\n${format_diff_map(stats.diff, repo_name)}\n` +
+        '## Details\n' +
+        `<details><summary>Old Dataset</summary>\n${format_dataset_map(stats.old, repo_name)}</details>\n` +
+        `<details><summary>New Dataset</summary>\n${format_dataset_map(stats.new, repo_name)}</details>\n` +
         `${COMMENT_FOOTER}`);
 }
 function format_root(root, repo_name) {
@@ -287,14 +288,30 @@ function format_dataset(dataset) {
     }
     return ret;
 }
-function table_am_function_list(list) {
-    let ret = '';
-    ret = `${ret}|Module|Function|\n`;
-    ret = `${ret}|------|--------|\n`;
-    for (const fn of list) {
-        ret = `${ret}|${fn.module}|${fn.function}|\n`;
+function table_am_function_list(list, force_single_table) {
+    const PER_MODULE_TABLES_THRESHOLD = 10;
+    if (list.length < PER_MODULE_TABLES_THRESHOLD || force_single_table) {
+        let ret = '';
+        ret = `${ret}|Module|Function|\n`;
+        ret = `${ret}|------|--------|\n`;
+        for (const fn of list) {
+            ret = `${ret}|${fn.module}|${fn.function}|\n`;
+        }
+        ret = `${ret}\n`;
+        return ret;
     }
-    ret = `${ret}\n`;
+    let ret = '';
+    const per_module_fn_list = {};
+    for (const fn of list) {
+        if (!per_module_fn_list.hasOwnProperty(fn.module)) {
+            per_module_fn_list[fn.module] = [];
+        }
+        per_module_fn_list[fn.module].push(fn);
+    }
+    for (const [module_name, module_list] of Object.entries(per_module_fn_list)) {
+        ret = `${ret}Module ${module_name}:\n`;
+        ret = `${ret}${table_am_function_list(module_list, true)}\n`;
+    }
     return ret;
 }
 
