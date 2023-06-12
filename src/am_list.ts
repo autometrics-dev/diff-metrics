@@ -11,7 +11,7 @@ import {promisify} from 'util'
 
 const execAsync = promisify(exec)
 
-const OWNER = 'gagbo'
+const OWNER = 'autometrics-dev'
 const REPO = 'am_list'
 const ASSET_NAME = 'am_list-x86_64-unknown-linux-gnu.tar.gz'
 const ARCHIVE_NAME = 'am_list-x86_64-unknown-linux-gnu'
