@@ -17,7 +17,7 @@ export type DiffStats = {
   diff: DataSetDiffMap
 }
 
-export async function update_or_post_comment(
+export async function updateOrPostComment(
   octokit: InstanceType<typeof GitHub>,
   context: Context,
   stats: DiffStats

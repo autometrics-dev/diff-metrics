@@ -31,7 +31,7 @@ export type DataSetMap = {
 
 export type Language = 'rust' | 'typescript' | 'go'
 
-export async function download_am_list(
+export async function downloadAmList(
   octokit: InstanceType<typeof GitHub>,
   version: string
 ): Promise<string> {

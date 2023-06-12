@@ -10,13 +10,17 @@
   + the PR
   + the repo
   + read/write access to comments on issues/PR
-
-The permissions added in the
-"Example Usage" section allow to use the built-in `${{ secrets.GITHUB_TOKEN }}`
-directly for that.
+  The permissions added in the
+  "Example Usage" section allow to use the built-in `${{ secrets.GITHUB_TOKEN }}`
+  directly for that.
 - `rs-roots`: a list of project roots for rust projects, one root per line.
   The values are given relative to the root of the repository, and should
   point to the directory containing the `Cargo.toml` directory.
+- `retention-days`: the number of days to keep the list of functions as
+  [workflow
+  artifacts](https://docs.github.com/en/actions/using-workflows/storing-workflow-data-as-artifacts#about-workflow-artifacts).
+  By default it will use the same retention settings as the settings in the
+  repository (by setting `retention-days` to 0)
 
 ## Outputs
 

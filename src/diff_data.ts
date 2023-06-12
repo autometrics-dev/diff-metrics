@@ -12,13 +12,13 @@ export type DataSetDiffMap = {
   [root: string]: DataSetDiff
 }
 
-export function diff_dataset_maps(
+export function diffDatasetMaps(
   head_map: DataSetMap,
   base_map: DataSetMap
 ): DataSetDiffMap {
   const ret: DataSetDiffMap = {}
   for (const [head_root, head_set] of Object.entries(head_map)) {
-    ret[head_root] = diff_dataset(
+    ret[head_root] = diffDataset(
       head_set,
       base_map[head_root] ?? {autometricized_functions: []}
     )
@@ -28,25 +28,22 @@ export function diff_dataset_maps(
     if (head_map[base_root]) {
       continue
     }
-    ret[base_root] = diff_dataset({autometricized_functions: []}, base_set)
+    ret[base_root] = diffDataset({autometricized_functions: []}, base_set)
   }
 
   return ret
 }
 
-export function diff_dataset(
-  head_set: DataSet,
-  base_set: DataSet
-): DataSetDiff {
-  const head = to_set(head_set)
-  const base = to_set(base_set)
+export function diffDataset(head_set: DataSet, base_set: DataSet): DataSetDiff {
+  const head = toSet(head_set)
+  const base = toSet(base_set)
   return {
     newly_autometricized: difference(head, base),
     no_longer_autometricized: difference(base, head)
   }
 }
 
-function to_set(dataset: DataSet): Set<string> {
+function toSet(dataset: DataSet): Set<string> {
   const ret = new Set<string>()
   for (const fn of dataset.autometricized_functions) {
     ret.add(JSON.stringify(fn))

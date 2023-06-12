@@ -1,4 +1,4 @@
-import {download_am_list} from '../src/am_list'
+import {downloadAmList} from '../src/am_list'
 import {expect, test} from '@jest/globals'
 import * as fs from 'fs'
 import * as github from '@actions/github'
@@ -16,7 +16,7 @@ test('downloads the linux version of am_list', async () => {
   const octokit = github.getOctokit(READ_ONLY_TEST_TOKEN, {
     userAgent: 'autometrics-dev/diff-metrics-test'
   })
-  const path = await download_am_list(octokit, 'v0.2.0')
+  const path = await downloadAmList(octokit, 'v0.2.0')
   expect(() =>
     fs.accessSync(path, fs.constants.R_OK | fs.constants.X_OK)
   ).not.toThrow()

@@ -1,10 +1,10 @@
 import {expect, test} from '@jest/globals'
 import {DataSet, DataSetMap} from '../src/am_list'
 import {
-  diff_dataset,
+  diffDataset,
   DataSetDiff,
   DataSetDiffMap,
-  diff_dataset_maps
+  diffDatasetMaps
 } from '../src/diff_data'
 
 test('computes the differences between datasets with base empty', async () => {
@@ -23,7 +23,7 @@ test('computes the differences between datasets with base empty', async () => {
     no_longer_autometricized: []
   }
 
-  expect(diff_dataset(head_set, base_set)).toStrictEqual(expected)
+  expect(diffDataset(head_set, base_set)).toStrictEqual(expected)
 })
 
 test('computes the differences between datasets with head empty', async () => {
@@ -42,7 +42,7 @@ test('computes the differences between datasets with head empty', async () => {
     newly_autometricized: []
   }
 
-  expect(diff_dataset(head_set, base_set)).toStrictEqual(expected)
+  expect(diffDataset(head_set, base_set)).toStrictEqual(expected)
 })
 
 test('computes the differences between diverse non-empty datasets', async () => {
@@ -63,7 +63,7 @@ test('computes the differences between diverse non-empty datasets', async () => 
     newly_autometricized: [{module: 'db::postgres', function: 'remove_user'}]
   }
 
-  expect(diff_dataset(head_set, base_set)).toStrictEqual(expected)
+  expect(diffDataset(head_set, base_set)).toStrictEqual(expected)
 })
 
 test('computes a diff map in the same root', async () => {
@@ -90,7 +90,7 @@ test('computes a diff map in the same root', async () => {
     }
   }
 
-  expect(diff_dataset_maps(head_set_map, base_set_map)).toStrictEqual(expected)
+  expect(diffDatasetMaps(head_set_map, base_set_map)).toStrictEqual(expected)
 })
 
 test('computes a diff map with a root removed', async () => {
@@ -123,7 +123,7 @@ test('computes a diff map with a root removed', async () => {
     }
   }
 
-  expect(diff_dataset_maps(head_set_map, base_set_map)).toStrictEqual(expected)
+  expect(diffDatasetMaps(head_set_map, base_set_map)).toStrictEqual(expected)
 })
 
 test('computes a diff map with a root added', async () => {
@@ -156,5 +156,5 @@ test('computes a diff map with a root added', async () => {
     }
   }
 
-  expect(diff_dataset_maps(head_set_map, base_set_map)).toStrictEqual(expected)
+  expect(diffDatasetMaps(head_set_map, base_set_map)).toStrictEqual(expected)
 })
