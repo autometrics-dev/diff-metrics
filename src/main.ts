@@ -39,9 +39,10 @@ async function run(): Promise<void> {
       new_datasets[rs_root] = await computeDataSet(am_path, rs_root, 'rust')
     }
 
+    const headSha = payload.pull_request?.head.sha ?? payload.after
     core.info(JSON.stringify(new_datasets, undefined, 2))
     await storeDataSetMap(
-      `autometrics-after-${payload.after}`,
+      `autometrics-after-${headSha}`,
       new_datasets,
       retention
     )
@@ -71,7 +72,7 @@ async function run(): Promise<void> {
 
     const dataset_diff = diffDatasetMaps(new_datasets, old_datasets)
     await storeDataSetDiffMap(
-      `autometrics-diff-${baseSha}-${payload.after}`,
+      `autometrics-diff-${baseSha}-${headSha}`,
       dataset_diff,
       retention
     )

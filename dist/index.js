@@ -570,7 +570,7 @@ const RS_ROOTS = 'rust-roots';
 const RETENTION = 'retention-days';
 const AM_LIST_VERSION = 'v0.2.0';
 async function run() {
-    var _a;
+    var _a, _b, _c;
     try {
         const payload = github.context.payload;
         const token = core.getInput(TOKEN);
@@ -592,8 +592,9 @@ async function run() {
         for (const rs_root of rs_roots) {
             new_datasets[rs_root] = await (0, am_list_1.computeDataSet)(am_path, rs_root, 'rust');
         }
+        const headSha = (_b = (_a = payload.pull_request) === null || _a === void 0 ? void 0 : _a.head.sha) !== null && _b !== void 0 ? _b : payload.after;
         core.info(JSON.stringify(new_datasets, undefined, 2));
-        await (0, artifact_1.storeDataSetMap)(`autometrics-after-${payload.after}`, new_datasets, retention);
+        await (0, artifact_1.storeDataSetMap)(`autometrics-after-${headSha}`, new_datasets, retention);
         core.endGroup();
         // Setting up the base state to compare to.
         const baseSha = await (0, gitops_1.checkoutBaseState)(payload);
@@ -610,8 +611,8 @@ async function run() {
         await (0, artifact_1.storeDataSetMap)(`autometrics-before-${baseSha}`, old_datasets, retention);
         core.endGroup();
         const dataset_diff = (0, diff_data_1.diffDatasetMaps)(new_datasets, old_datasets);
-        await (0, artifact_1.storeDataSetDiffMap)(`autometrics-diff-${baseSha}-${payload.after}`, dataset_diff, retention);
-        const issueRef = (_a = payload.pull_request) === null || _a === void 0 ? void 0 : _a.number;
+        await (0, artifact_1.storeDataSetDiffMap)(`autometrics-diff-${baseSha}-${headSha}`, dataset_diff, retention);
+        const issueRef = (_c = payload.pull_request) === null || _c === void 0 ? void 0 : _c.number;
         if (!issueRef) {
             core.info('no issue_ref found for this event. Ending.');
             return;
