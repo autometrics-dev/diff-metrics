@@ -7,7 +7,12 @@ import decompress from 'decompress'
 import {PathLike} from 'fs'
 import {GitHub} from '@actions/github/lib/utils'
 import {exec} from 'child_process'
+import * as core from '@actions/core'
 import {promisify} from 'util'
+import * as semver from 'semver'
+// Removing false positive
+// eslint-disable-next-line import/no-unresolved
+import {components} from '@octokit/openapi-types'
 
 const execAsync = promisify(exec)
 
@@ -15,6 +20,8 @@ const OWNER = 'autometrics-dev'
 const REPO = 'am_list'
 const ASSET_NAME = 'am_list-x86_64-unknown-linux-gnu.tar.gz'
 const ARCHIVE_NAME = 'am_list-x86_64-unknown-linux-gnu'
+
+type Release = components['schemas']['release']
 
 export type AmFunction = {
   module: string
@@ -33,29 +40,24 @@ export type Language = 'rust' | 'typescript' | 'go'
 
 export async function downloadAmList(
   octokit: InstanceType<typeof GitHub>,
-  version: string
+  versionConstraint?: string
 ): Promise<string> {
-  const release = await octokit.rest.repos.getReleaseByTag({
-    owner: OWNER,
-    repo: REPO,
-    tag: version
-  })
-
-  if (release.status !== 200) {
-    throw new Error(
-      `Fetching release ${version} failed: ${release.data.body_text}`
-    )
-  }
+  const release = await getAmListReleaseId(octokit, versionConstraint)
+  core.info(
+    `Version constraint: ${versionConstraint ?? 'latest'}\nVersion picked: ${
+      release.tag_name
+    }`
+  )
 
   const assets = await octokit.rest.repos.listReleaseAssets({
     owner: OWNER,
     repo: REPO,
-    release_id: release.data.id
+    release_id: release.id
   })
 
   if (assets.status !== 200) {
     throw new Error(
-      `Fetching assets for release ${version} failed: ${assets.status}`
+      `Fetching assets for release ${release.tag_name} failed: ${assets.status}`
     )
   }
 
@@ -72,7 +74,7 @@ export async function downloadAmList(
 
       if (tarball.status !== 200) {
         throw new Error(
-          `Fetching asset for release ${version} failed: ${tarball.status}`
+          `Fetching asset for release ${release.tag_name} failed: ${tarball.status}`
         )
       }
 
@@ -85,7 +87,40 @@ export async function downloadAmList(
   }
 
   throw new Error(
-    `No asset found for release ${version} (trying to find ${ASSET_NAME})`
+    `No asset found for release ${release.tag_name} (trying to find ${ASSET_NAME})`
+  )
+}
+export async function getAmListReleaseId(
+  octokit: InstanceType<typeof GitHub>,
+  versionConstraint?: string
+): Promise<Release> {
+  const releases = await octokit.rest.repos.listReleases({
+    owner: OWNER,
+    repo: REPO,
+    per_page: 200
+  })
+
+  if (releases.status !== 200) {
+    throw new Error(`Fetching releases failed: ${releases.status}`)
+  }
+
+  const sorted_releases = releases.data.sort(function (v1, v2) {
+    return semver.rcompare(v1.tag_name, v2.tag_name)
+  })
+
+  if (!versionConstraint) {
+    return sorted_releases[0]
+  }
+
+  const constraintPrefix = `v${versionConstraint}`
+  for (const release_candidate of sorted_releases) {
+    if (release_candidate.tag_name.startsWith(constraintPrefix)) {
+      return release_candidate
+    }
+  }
+
+  throw new Error(
+    `No release matching the constraint ${versionConstraint} found.`
   )
 }
 

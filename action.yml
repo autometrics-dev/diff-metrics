@@ -18,6 +18,9 @@ inputs:
     description: 'The number of days to keep the artifacts for. Defaults to 0 (inherits the policy from the repository)'
     required: false
     default: 0
+  am-version:
+    description: 'The version of am to download, skip patch or minor to act as a wildcard. "0.2" means ">=0.2.0 && <0.3.0", "1" means ">=1.0.0 && <2.0.0", etc.'
+    required: false
 runs:
   using: 'node16'
   main: 'dist/index.js'
