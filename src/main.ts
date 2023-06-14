@@ -10,7 +10,7 @@ const TOKEN = 'gh-token'
 const TS_ROOTS = 'ts-roots'
 const RS_ROOTS = 'rust-roots'
 const RETENTION = 'retention-days'
-const AM_LIST_VERSION = 'v0.2.0'
+const AM_VERSION = 'am-version'
 
 async function run(): Promise<void> {
   try {
@@ -23,9 +23,11 @@ async function run(): Promise<void> {
     const ts_roots = core.getMultilineInput(TS_ROOTS)
     const rs_roots = core.getMultilineInput(RS_ROOTS)
     const retention = parseInt(core.getInput(RETENTION))
+    const am_version =
+      core.getInput(AM_VERSION) !== '' ? core.getInput(AM_VERSION) : undefined
 
-    core.startGroup(`Downloading am_list ${AM_LIST_VERSION}`)
-    const am_path = await downloadAmList(octokit, AM_LIST_VERSION)
+    core.startGroup(`Downloading am_list matching ${am_version ?? 'latest'}`)
+    const am_path = await downloadAmList(octokit, am_version)
     core.endGroup()
 
     core.startGroup('[head] Building datasets for head branch')
@@ -70,12 +72,15 @@ async function run(): Promise<void> {
     )
     core.endGroup()
 
+    core.startGroup('Computing and saving the difference between the datasets')
     const dataset_diff = diffDatasetMaps(new_datasets, old_datasets)
+    core.info(JSON.stringify(dataset_diff, undefined, 2))
     await storeDataSetDiffMap(
       `autometrics-diff-${baseSha}-${headSha}`,
       dataset_diff,
       retention
     )
+    core.endGroup()
 
     const issueRef = payload.pull_request?.number
     if (!issueRef) {

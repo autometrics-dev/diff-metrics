@@ -25,6 +25,11 @@ if you wish, but there is no `@v1` version to use for now
   artifacts](https://docs.github.com/en/actions/using-workflows/storing-workflow-data-as-artifacts#about-workflow-artifacts).
   By default it will use the same retention settings as the settings in the
   repository (by setting `retention-days` to 0)
+- `am-version`: a string that allows to choose the version of `am_list` to
+  download/use. You can skip the patch (e.g. `0.2`) or the minor (e.g. `0`) to
+  tell the action to download the latest version that falls within the bound.
+  Defaults to an empty string (`""`), which means "download the latest version,
+  semver-wise"
 
 ## Outputs
 
