@@ -2,10 +2,15 @@
 // to be exposed as a PR commet
 
 import {AmFunction, DataSet, DataSetMap} from './am_list'
+import {difference, intersection} from './utils'
 
 export type DataSetDiff = {
-  newly_autometricized: AmFunction[]
-  no_longer_autometricized: AmFunction[]
+  existing_newly_autometricized: AmFunction[]
+  existing_no_longer_autometricized: AmFunction[]
+  deleted_functions: AmFunction[]
+  new_functions_autometricized: AmFunction[]
+  new_functions_not_am: AmFunction[]
+  coverage_ratio_diff?: number
 }
 
 export type DataSetDiffMap = {
@@ -20,7 +25,7 @@ export function diffDatasetMaps(
   for (const [head_root, head_set] of Object.entries(head_map)) {
     ret[head_root] = diffDataset(
       head_set,
-      base_map[head_root] ?? {autometricized_functions: []}
+      base_map[head_root] ?? {autometricized_functions: [], other_functions: []}
     )
   }
 
@@ -28,39 +33,61 @@ export function diffDatasetMaps(
     if (head_map[base_root]) {
       continue
     }
-    ret[base_root] = diffDataset({autometricized_functions: []}, base_set)
+    ret[base_root] = diffDataset(
+      {autometricized_functions: [], other_functions: []},
+      base_set
+    )
   }
 
   return ret
 }
 
 export function diffDataset(head_set: DataSet, base_set: DataSet): DataSetDiff {
-  const head = toSet(head_set)
-  const base = toSet(base_set)
+  const all_new_functions = [
+    ...head_set.autometricized_functions,
+    ...head_set.other_functions
+  ]
+  const all_old_functions = [
+    ...base_set.autometricized_functions,
+    ...base_set.other_functions
+  ]
+
+  const all_added_functions = difference(all_new_functions, all_old_functions)
+  const deleted_functions = difference(all_old_functions, all_new_functions)
+
+  const new_functions_autometricized = intersection(
+    all_added_functions,
+    head_set.autometricized_functions
+  )
+  const new_functions_not_am = intersection(
+    all_added_functions,
+    head_set.other_functions
+  )
+
+  const existing_newly_autometricized = intersection(
+    base_set.other_functions,
+    head_set.autometricized_functions
+  )
+  const existing_no_longer_autometricized = intersection(
+    head_set.other_functions,
+    base_set.autometricized_functions
+  )
+
+  const new_coverage_ratio =
+    head_set.autometricized_functions.length / all_new_functions.length
+  const old_coverage_ratio =
+    base_set.autometricized_functions.length / all_old_functions.length
+
+  const coverage_ratio_diff = isNaN(new_coverage_ratio - old_coverage_ratio)
+    ? undefined
+    : new_coverage_ratio - old_coverage_ratio
+
   return {
-    newly_autometricized: difference(head, base),
-    no_longer_autometricized: difference(base, head)
+    existing_newly_autometricized,
+    existing_no_longer_autometricized,
+    deleted_functions,
+    new_functions_autometricized,
+    new_functions_not_am,
+    coverage_ratio_diff
   }
-}
-
-function toSet(dataset: DataSet): Set<string> {
-  const ret = new Set<string>()
-  for (const fn of dataset.autometricized_functions) {
-    ret.add(JSON.stringify(fn))
-  }
-  return ret
-}
-
-// Returns what's in A but not in B
-// This function should not be public because of the unsafe typecasting it does in the JSON.parse call.
-function difference(setA: Set<string>, setB: Set<string>): AmFunction[] {
-  const _difference = new Set(setA)
-  for (const elem of setB) {
-    _difference.delete(elem)
-  }
-  const ret: AmFunction[] = []
-  for (const fn of _difference.values()) {
-    ret.push(JSON.parse(fn))
-  }
-  return ret
 }

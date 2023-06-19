@@ -13,6 +13,7 @@ import * as semver from 'semver'
 // Removing false positive
 // eslint-disable-next-line import/no-unresolved
 import {components} from '@octokit/openapi-types'
+import {difference} from './utils'
 
 const execAsync = promisify(exec)
 
@@ -30,6 +31,7 @@ export type AmFunction = {
 
 export type DataSet = {
   autometricized_functions: AmFunction[]
+  other_functions: AmFunction[]
 }
 
 export type DataSetMap = {
@@ -90,6 +92,7 @@ export async function downloadAmList(
     `No asset found for release ${release.tag_name} (trying to find ${ASSET_NAME})`
   )
 }
+
 export async function getAmListReleaseId(
   octokit: InstanceType<typeof GitHub>,
   versionConstraint?: string
@@ -129,11 +132,22 @@ export async function computeDataSet(
   project_root: PathLike,
   language: Language
 ): Promise<DataSet> {
-  const {stdout} = await execAsync(
+  const {stdout: all_fns} = await execAsync(
+    `${am_list} list -a -l ${language} ${project_root}`
+  )
+
+  const allFunctions: AmFunction[] = JSON.parse(all_fns)
+
+  const {stdout: am_fns} = await execAsync(
     `${am_list} list -l ${language} ${project_root}`
   )
 
+  const amFunctions: AmFunction[] = JSON.parse(am_fns)
+
+  const otherFunctions = difference(allFunctions, amFunctions)
+
   return {
-    autometricized_functions: JSON.parse(stdout)
+    autometricized_functions: amFunctions,
+    other_functions: otherFunctions
   }
 }
