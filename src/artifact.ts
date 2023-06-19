@@ -29,13 +29,13 @@ async function storeJsonArtifact(
 
 export async function storeDataSetMap(
   name: string,
-  am_data: DataSetMap,
+  amData: DataSetMap,
   retention: number
 ): Promise<void> {
   await storeJsonArtifact(
     name,
     DATASET_ARTIFACT_NAME,
-    JSON.stringify(am_data),
+    JSON.stringify(amData),
     retention
   )
 }

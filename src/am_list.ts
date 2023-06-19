@@ -30,8 +30,8 @@ export type AmFunction = {
 }
 
 export type DataSet = {
-  autometricized_functions: AmFunction[]
-  other_functions: AmFunction[]
+  autometricizedFunctions: AmFunction[]
+  otherFunctions: AmFunction[]
 }
 
 export type DataSetMap = {
@@ -107,18 +107,18 @@ export async function getAmListReleaseId(
     throw new Error(`Fetching releases failed: ${releases.status}`)
   }
 
-  const sorted_releases = releases.data.sort(function (v1, v2) {
+  const sortedReleases = releases.data.sort(function (v1, v2) {
     return semver.rcompare(v1.tag_name, v2.tag_name)
   })
 
   if (!versionConstraint) {
-    return sorted_releases[0]
+    return sortedReleases[0]
   }
 
   const constraintPrefix = `v${versionConstraint}`
-  for (const release_candidate of sorted_releases) {
-    if (release_candidate.tag_name.startsWith(constraintPrefix)) {
-      return release_candidate
+  for (const releaseCandidate of sortedReleases) {
+    if (releaseCandidate.tag_name.startsWith(constraintPrefix)) {
+      return releaseCandidate
     }
   }
 
@@ -128,26 +128,26 @@ export async function getAmListReleaseId(
 }
 
 export async function computeDataSet(
-  am_list: PathLike,
-  project_root: PathLike,
+  amList: PathLike,
+  projectRoot: PathLike,
   language: Language
 ): Promise<DataSet> {
-  const {stdout: all_fns} = await execAsync(
-    `${am_list} list -a -l ${language} ${project_root}`
+  const {stdout: allFns} = await execAsync(
+    `${amList} list -a -l ${language} ${projectRoot}`
   )
 
-  const allFunctions: AmFunction[] = JSON.parse(all_fns)
+  const allFunctions: AmFunction[] = JSON.parse(allFns)
 
-  const {stdout: am_fns} = await execAsync(
-    `${am_list} list -l ${language} ${project_root}`
+  const {stdout: amFns} = await execAsync(
+    `${amList} list -l ${language} ${projectRoot}`
   )
 
-  const amFunctions: AmFunction[] = JSON.parse(am_fns)
+  const amFunctions: AmFunction[] = JSON.parse(amFns)
 
   const otherFunctions = difference(allFunctions, amFunctions)
 
   return {
-    autometricized_functions: amFunctions,
-    other_functions: otherFunctions
+    autometricizedFunctions: amFunctions,
+    otherFunctions
   }
 }

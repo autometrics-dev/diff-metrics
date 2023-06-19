@@ -10,23 +10,23 @@ import {existsSync} from 'fs'
 
 test('computes the differences between datasets with base empty', async () => {
   const head_set: DataSet = {
-    autometricized_functions: [
+    autometricizedFunctions: [
       {module: 'main', function: 'main'},
       {module: 'main::db', function: 'add_user'}
     ],
-    other_functions: []
+    otherFunctions: []
   }
-  const base_set: DataSet = {autometricized_functions: [], other_functions: []}
+  const base_set: DataSet = {autometricizedFunctions: [], otherFunctions: []}
   const expected: DataSetDiff = {
-    new_functions_autometricized: [
+    newFunctionsAutometricized: [
       {module: 'main', function: 'main'},
       {module: 'main::db', function: 'add_user'}
     ],
-    new_functions_not_am: [],
-    existing_newly_autometricized: [],
-    existing_no_longer_autometricized: [],
-    coverage_ratio_diff: undefined,
-    deleted_functions: []
+    newFunctionsNotAm: [],
+    existingNewlyAutometricized: [],
+    existingNoLongerAutometricized: [],
+    coverageRatioDiff: undefined,
+    deletedFunctions: []
   }
 
   expect(diffDataset(head_set, base_set)).toStrictEqual(expected)
@@ -34,23 +34,23 @@ test('computes the differences between datasets with base empty', async () => {
 
 test('computes the differences between datasets with head empty', async () => {
   const base_set: DataSet = {
-    autometricized_functions: [
+    autometricizedFunctions: [
       {module: 'main', function: 'main'},
       {module: 'main::db', function: 'add_user'}
     ],
-    other_functions: []
+    otherFunctions: []
   }
-  const head_set: DataSet = {autometricized_functions: [], other_functions: []}
+  const head_set: DataSet = {autometricizedFunctions: [], otherFunctions: []}
   const expected: DataSetDiff = {
-    deleted_functions: [
+    deletedFunctions: [
       {module: 'main', function: 'main'},
       {module: 'main::db', function: 'add_user'}
     ],
-    new_functions_autometricized: [],
-    new_functions_not_am: [],
-    existing_newly_autometricized: [],
-    existing_no_longer_autometricized: [],
-    coverage_ratio_diff: undefined
+    newFunctionsAutometricized: [],
+    newFunctionsNotAm: [],
+    existingNewlyAutometricized: [],
+    existingNoLongerAutometricized: [],
+    coverageRatioDiff: undefined
   }
 
   expect(diffDataset(head_set, base_set)).toStrictEqual(expected)
@@ -58,28 +58,28 @@ test('computes the differences between datasets with head empty', async () => {
 
 test('computes the differences between diverse non-empty datasets', async () => {
   const base_set: DataSet = {
-    autometricized_functions: [
+    autometricizedFunctions: [
       {module: 'main', function: 'main'},
       {module: 'main::db', function: 'add_user'}
     ],
-    other_functions: []
+    otherFunctions: []
   }
   const head_set: DataSet = {
-    autometricized_functions: [
+    autometricizedFunctions: [
       {module: 'db::postgres', function: 'remove_user'},
       {module: 'main', function: 'main'}
     ],
-    other_functions: []
+    otherFunctions: []
   }
   const expected: DataSetDiff = {
-    deleted_functions: [{module: 'main::db', function: 'add_user'}],
-    new_functions_autometricized: [
+    deletedFunctions: [{module: 'main::db', function: 'add_user'}],
+    newFunctionsAutometricized: [
       {module: 'db::postgres', function: 'remove_user'}
     ],
-    new_functions_not_am: [],
-    existing_newly_autometricized: [],
-    existing_no_longer_autometricized: [],
-    coverage_ratio_diff: 0.0
+    newFunctionsNotAm: [],
+    existingNewlyAutometricized: [],
+    existingNoLongerAutometricized: [],
+    coverageRatioDiff: 0.0
   }
 
   expect(diffDataset(head_set, base_set)).toStrictEqual(expected)
@@ -88,32 +88,32 @@ test('computes the differences between diverse non-empty datasets', async () => 
 test('computes a diff map in the same root', async () => {
   const base_set_map: DataSetMap = {
     '.': {
-      autometricized_functions: [
+      autometricizedFunctions: [
         {module: 'main', function: 'main'},
         {module: 'main::db', function: 'add_user'}
       ],
-      other_functions: []
+      otherFunctions: []
     }
   }
   const head_set_map: DataSetMap = {
     '.': {
-      autometricized_functions: [
+      autometricizedFunctions: [
         {module: 'db::postgres', function: 'remove_user'},
         {module: 'main', function: 'main'}
       ],
-      other_functions: []
+      otherFunctions: []
     }
   }
   const expected: DataSetDiffMap = {
     '.': {
-      deleted_functions: [{module: 'main::db', function: 'add_user'}],
-      new_functions_autometricized: [
+      deletedFunctions: [{module: 'main::db', function: 'add_user'}],
+      newFunctionsAutometricized: [
         {module: 'db::postgres', function: 'remove_user'}
       ],
-      new_functions_not_am: [],
-      existing_newly_autometricized: [],
-      existing_no_longer_autometricized: [],
-      coverage_ratio_diff: 0.0
+      newFunctionsNotAm: [],
+      existingNewlyAutometricized: [],
+      existingNoLongerAutometricized: [],
+      coverageRatioDiff: 0.0
     }
   }
 
@@ -123,43 +123,41 @@ test('computes a diff map in the same root', async () => {
 test('computes a diff map with a root removed', async () => {
   const base_set_map: DataSetMap = {
     '.': {
-      autometricized_functions: [{module: 'main', function: 'main'}],
-      other_functions: []
+      autometricizedFunctions: [{module: 'main', function: 'main'}],
+      otherFunctions: []
     },
     db: {
-      autometricized_functions: [{module: 'main', function: 'add_user'}],
-      other_functions: []
+      autometricizedFunctions: [{module: 'main', function: 'add_user'}],
+      otherFunctions: []
     }
   }
 
   const head_set_map: DataSetMap = {
     '.': {
-      autometricized_functions: [
+      autometricizedFunctions: [
         {module: 'main', function: 'main'},
         {module: 'main::db', function: 'add_user'}
       ],
-      other_functions: []
+      otherFunctions: []
     }
   }
 
   const expected: DataSetDiffMap = {
     '.': {
-      deleted_functions: [],
-      new_functions_autometricized: [
-        {module: 'main::db', function: 'add_user'}
-      ],
-      new_functions_not_am: [],
-      existing_newly_autometricized: [],
-      existing_no_longer_autometricized: [],
-      coverage_ratio_diff: 0.0
+      deletedFunctions: [],
+      newFunctionsAutometricized: [{module: 'main::db', function: 'add_user'}],
+      newFunctionsNotAm: [],
+      existingNewlyAutometricized: [],
+      existingNoLongerAutometricized: [],
+      coverageRatioDiff: 0.0
     },
     db: {
-      deleted_functions: [{module: 'main', function: 'add_user'}],
-      new_functions_autometricized: [],
-      new_functions_not_am: [],
-      existing_newly_autometricized: [],
-      existing_no_longer_autometricized: [],
-      coverage_ratio_diff: undefined
+      deletedFunctions: [{module: 'main', function: 'add_user'}],
+      newFunctionsAutometricized: [],
+      newFunctionsNotAm: [],
+      existingNewlyAutometricized: [],
+      existingNoLongerAutometricized: [],
+      coverageRatioDiff: undefined
     }
   }
 
@@ -169,41 +167,41 @@ test('computes a diff map with a root removed', async () => {
 test('computes a diff map with a root added', async () => {
   const head_set_map: DataSetMap = {
     '.': {
-      autometricized_functions: [{module: 'main', function: 'main'}],
-      other_functions: []
+      autometricizedFunctions: [{module: 'main', function: 'main'}],
+      otherFunctions: []
     },
     db: {
-      autometricized_functions: [{module: 'main', function: 'add_user'}],
-      other_functions: []
+      autometricizedFunctions: [{module: 'main', function: 'add_user'}],
+      otherFunctions: []
     }
   }
 
   const base_set_map: DataSetMap = {
     '.': {
-      autometricized_functions: [
+      autometricizedFunctions: [
         {module: 'main', function: 'main'},
         {module: 'main::db', function: 'add_user'}
       ],
-      other_functions: []
+      otherFunctions: []
     }
   }
 
   const expected: DataSetDiffMap = {
     '.': {
-      deleted_functions: [{module: 'main::db', function: 'add_user'}],
-      new_functions_autometricized: [],
-      new_functions_not_am: [],
-      existing_newly_autometricized: [],
-      existing_no_longer_autometricized: [],
-      coverage_ratio_diff: 0.0
+      deletedFunctions: [{module: 'main::db', function: 'add_user'}],
+      newFunctionsAutometricized: [],
+      newFunctionsNotAm: [],
+      existingNewlyAutometricized: [],
+      existingNoLongerAutometricized: [],
+      coverageRatioDiff: 0.0
     },
     db: {
-      new_functions_autometricized: [{module: 'main', function: 'add_user'}],
-      deleted_functions: [],
-      new_functions_not_am: [],
-      existing_newly_autometricized: [],
-      existing_no_longer_autometricized: [],
-      coverage_ratio_diff: undefined
+      newFunctionsAutometricized: [{module: 'main', function: 'add_user'}],
+      deletedFunctions: [],
+      newFunctionsNotAm: [],
+      existingNewlyAutometricized: [],
+      existingNoLongerAutometricized: [],
+      coverageRatioDiff: undefined
     }
   }
 

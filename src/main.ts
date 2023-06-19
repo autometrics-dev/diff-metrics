@@ -20,32 +20,32 @@ async function run(): Promise<void> {
     const octokit = github.getOctokit(token, {
       userAgent: 'Autometrics/diff-metrics v1'
     })
-    const ts_roots = core.getMultilineInput(TS_ROOTS)
-    const rs_roots = core.getMultilineInput(RS_ROOTS)
+    const tsRoots = core.getMultilineInput(TS_ROOTS)
+    const rsRoots = core.getMultilineInput(RS_ROOTS)
     const retention = parseInt(core.getInput(RETENTION))
-    const am_version =
+    const amVersion =
       core.getInput(AM_VERSION) !== '' ? core.getInput(AM_VERSION) : undefined
 
-    core.startGroup(`Downloading am_list matching ${am_version ?? 'latest'}`)
-    const am_path = await downloadAmList(octokit, am_version)
+    core.startGroup(`Downloading am_list matching ${amVersion ?? 'latest'}`)
+    const amPath = await downloadAmList(octokit, amVersion)
     core.endGroup()
 
     core.startGroup('[head] Building datasets for head branch')
-    const new_am_datasets: DataSetMap = {}
+    const newAmDatasets: DataSetMap = {}
 
     // eslint-disable-next-line @typescript-eslint/no-unused-vars
-    for (const ts_root of ts_roots) {
+    for (const tsRoot of tsRoots) {
       core.warning('Typescript is not supported by am_list yet.')
     }
-    for (const rs_root of rs_roots) {
-      new_am_datasets[rs_root] = await computeDataSet(am_path, rs_root, 'rust')
+    for (const rsRoot of rsRoots) {
+      newAmDatasets[rsRoot] = await computeDataSet(amPath, rsRoot, 'rust')
     }
 
     const headSha = payload.pull_request?.head.sha ?? payload.after
-    core.info(JSON.stringify(new_am_datasets, undefined, 2))
+    core.info(JSON.stringify(newAmDatasets, undefined, 2))
     await storeDataSetMap(
       `autometrics-after-${headSha}`,
-      new_am_datasets,
+      newAmDatasets,
       retention
     )
     core.endGroup()
@@ -54,30 +54,30 @@ async function run(): Promise<void> {
     const baseSha = await checkoutBaseState(payload)
 
     core.startGroup('[base] Building datasets for base state')
-    const old_am_datasets: DataSetMap = {}
+    const oldAmDatasets: DataSetMap = {}
 
     // eslint-disable-next-line @typescript-eslint/no-unused-vars
-    for (const ts_root of ts_roots) {
+    for (const tsRoot of tsRoots) {
       core.warning('Typescript is not supported by am_list yet.')
     }
-    for (const rs_root of rs_roots) {
-      old_am_datasets[rs_root] = await computeDataSet(am_path, rs_root, 'rust')
+    for (const rsRoot of rsRoots) {
+      oldAmDatasets[rsRoot] = await computeDataSet(amPath, rsRoot, 'rust')
     }
 
-    core.info(JSON.stringify(old_am_datasets, undefined, 2))
+    core.info(JSON.stringify(oldAmDatasets, undefined, 2))
     await storeDataSetMap(
       `autometrics-before-${baseSha}`,
-      old_am_datasets,
+      oldAmDatasets,
       retention
     )
     core.endGroup()
 
     core.startGroup('Computing and saving the difference between the datasets')
-    const dataset_diff = diffDatasetMaps(new_am_datasets, old_am_datasets)
-    core.info(JSON.stringify(dataset_diff, undefined, 2))
+    const datasetDiff = diffDatasetMaps(newAmDatasets, oldAmDatasets)
+    core.info(JSON.stringify(datasetDiff, undefined, 2))
     await storeDataSetDiffMap(
       `autometrics-diff-${baseSha}-${headSha}`,
-      dataset_diff,
+      datasetDiff,
       retention
     )
     core.endGroup()
@@ -90,9 +90,9 @@ async function run(): Promise<void> {
     core.startGroup(`Post comment on PR ${issueRef}`)
 
     await updateOrPostComment(octokit, github.context, {
-      old: old_am_datasets,
-      new: new_am_datasets,
-      diff: dataset_diff
+      old: oldAmDatasets,
+      new: newAmDatasets,
+      diff: datasetDiff
     })
 
     core.endGroup()
