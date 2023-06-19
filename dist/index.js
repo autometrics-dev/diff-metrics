@@ -89,30 +89,30 @@ async function getAmListReleaseId(octokit, versionConstraint) {
     if (releases.status !== 200) {
         throw new Error(`Fetching releases failed: ${releases.status}`);
     }
-    const sorted_releases = releases.data.sort(function (v1, v2) {
+    const sortedReleases = releases.data.sort(function (v1, v2) {
         return semver.rcompare(v1.tag_name, v2.tag_name);
     });
     if (!versionConstraint) {
-        return sorted_releases[0];
+        return sortedReleases[0];
     }
     const constraintPrefix = `v${versionConstraint}`;
-    for (const release_candidate of sorted_releases) {
-        if (release_candidate.tag_name.startsWith(constraintPrefix)) {
-            return release_candidate;
+    for (const releaseCandidate of sortedReleases) {
+        if (releaseCandidate.tag_name.startsWith(constraintPrefix)) {
+            return releaseCandidate;
         }
     }
     throw new Error(`No release matching the constraint ${versionConstraint} found.`);
 }
 exports.getAmListReleaseId = getAmListReleaseId;
-async function computeDataSet(am_list, project_root, language) {
-    const { stdout: all_fns } = await execAsync(`${am_list} list -a -l ${language} ${project_root}`);
-    const allFunctions = JSON.parse(all_fns);
-    const { stdout: am_fns } = await execAsync(`${am_list} list -l ${language} ${project_root}`);
-    const amFunctions = JSON.parse(am_fns);
+async function computeDataSet(amList, projectRoot, language) {
+    const { stdout: allFns } = await execAsync(`${amList} list -a -l ${language} ${projectRoot}`);
+    const allFunctions = JSON.parse(allFns);
+    const { stdout: amFns } = await execAsync(`${amList} list -l ${language} ${projectRoot}`);
+    const amFunctions = JSON.parse(amFns);
     const otherFunctions = (0, utils_1.difference)(allFunctions, amFunctions);
     return {
-        autometricized_functions: amFunctions,
-        other_functions: otherFunctions
+        autometricizedFunctions: amFunctions,
+        otherFunctions
     };
 }
 exports.computeDataSet = computeDataSet;
@@ -166,8 +166,8 @@ async function storeJsonArtifact(name, artifactName, data, retention) {
         retentionDays: retention
     });
 }
-async function storeDataSetMap(name, am_data, retention) {
-    await storeJsonArtifact(name, DATASET_ARTIFACT_NAME, JSON.stringify(am_data), retention);
+async function storeDataSetMap(name, amData, retention) {
+    await storeJsonArtifact(name, DATASET_ARTIFACT_NAME, JSON.stringify(amData), retention);
 }
 exports.storeDataSetMap = storeDataSetMap;
 async function storeDataSetDiffMap(name, data, retention) {
@@ -215,14 +215,14 @@ const COMMENT_HEADER = '# <i>Autometrics Compare Metrics</i>';
 const COMMENT_FOOTER = '\n\n<a href="https://github.com/autometrics-dev/diff-metrics"><sub>Autometrics diff-metrics</sub></a>';
 async function updateOrPostComment(octokit, context, stats) {
     var _a, _b, _c;
-    const issue_number = ((_a = context.payload.pull_request) === null || _a === void 0 ? void 0 : _a.number) || 0;
+    const issueNumber = ((_a = context.payload.pull_request) === null || _a === void 0 ? void 0 : _a.number) || 0;
     const commentInfo = {
         ...context.repo,
-        issue_number
+        issue_number: issueNumber
     };
     const comment = {
         ...commentInfo,
-        body: format_comment(stats, context.repo.repo)
+        body: formatComment(stats, context.repo.repo)
     };
     let commentId;
     try {
@@ -282,168 +282,167 @@ async function updateOrPostComment(octokit, context, stats) {
     }
 }
 exports.updateOrPostComment = updateOrPostComment;
-function format_comment(stats, repo_name) {
-    const header = `${COMMENT_HEADER}\n${format_summary(stats.diff, stats.old, stats.new)}`;
+function formatComment(stats, repoName) {
+    const header = `${COMMENT_HEADER}\n${formatSummary(stats.diff, stats.old, stats.new)}`;
     if (Object.entries(stats.diff).length === 0 ||
-        Object.values(stats.diff).every(dataset_diff => dataset_diff.existing_newly_autometricized.length === 0 &&
-            dataset_diff.new_functions_autometricized.length === 0 &&
-            dataset_diff.new_functions_not_am.length === 0 &&
-            dataset_diff.existing_no_longer_autometricized.length === 0)) {
+        Object.values(stats.diff).every(datasetDiff => datasetDiff.existingNewlyAutometricized.length === 0 &&
+            datasetDiff.newFunctionsAutometricized.length === 0 &&
+            datasetDiff.newFunctionsNotAm.length === 0 &&
+            datasetDiff.existingNoLongerAutometricized.length === 0)) {
         return `${header}\n${COMMENT_FOOTER}`;
     }
     return (`${header}\n` +
-        `## Differences in Datasets\n${format_diff_map(stats.diff, repo_name)}\n` +
+        `## Differences in Datasets\n${formatDiffMap(stats.diff, repoName)}\n` +
         '## Details\n' +
-        `<details><summary>Old Dataset</summary>\n${format_dataset_map(stats.old, repo_name)}</details>\n` +
-        `<details><summary>New Dataset</summary>\n${format_dataset_map(stats.new, repo_name)}</details>\n` +
+        `<details><summary>Old Dataset</summary>\n${formatDatasetMap(stats.old, repoName)}</details>\n` +
+        `<details><summary>New Dataset</summary>\n${formatDatasetMap(stats.new, repoName)}</details>\n` +
         `${COMMENT_FOOTER}`);
 }
-function format_root(root, repo_name) {
+function formatRoot(root, repoName) {
     if (root.startsWith('.')) {
-        return repo_name + root.substring(1);
+        return repoName + root.substring(1);
     }
     return root;
 }
-function format_summary(diff, old_data, new_data) {
+function formatSummary(diff, oldData, newData) {
     var _a, _b, _c, _d, _f, _g;
     if (Object.entries(diff).length === 0 ||
-        Object.values(diff).every(dataset_diff => dataset_diff.existing_newly_autometricized.length === 0 &&
-            dataset_diff.new_functions_autometricized.length === 0 &&
-            dataset_diff.new_functions_not_am.length === 0 &&
-            dataset_diff.existing_no_longer_autometricized.length === 0)) {
+        Object.values(diff).every(datasetDiff => datasetDiff.existingNewlyAutometricized.length === 0 &&
+            datasetDiff.newFunctionsAutometricized.length === 0 &&
+            datasetDiff.newFunctionsNotAm.length === 0 &&
+            datasetDiff.existingNoLongerAutometricized.length === 0)) {
         return 'No change\n';
     }
-    let am_additions = 0;
-    let am_removals = 0;
+    let amAdditions = 0;
+    let amRemovals = 0;
     let deletions = 0;
-    let not_am_additions = 0;
-    let old_total_fns = 0;
-    let old_total_am_fns = 0;
-    let new_total_fns = 0;
-    let new_total_am_fns = 0;
-    for (const [key, diff_item] of Object.entries(diff)) {
-        am_additions +=
-            diff_item.existing_newly_autometricized.length +
-                diff_item.new_functions_autometricized.length;
-        not_am_additions += diff_item.new_functions_not_am.length;
-        am_removals += diff_item.existing_no_longer_autometricized.length;
-        deletions += diff_item.deleted_functions.length;
-        old_total_fns +=
-            (_b = (_a = old_data[key].autometricized_functions.length) !== null && _a !== void 0 ? _a : 0 + old_data[key].autometricized_functions.length) !== null && _b !== void 0 ? _b : 0;
-        old_total_am_fns += (_c = old_data[key].autometricized_functions.length) !== null && _c !== void 0 ? _c : 0;
-        new_total_fns +=
-            (_f = (_d = new_data[key].autometricized_functions.length) !== null && _d !== void 0 ? _d : 0 + new_data[key].autometricized_functions.length) !== null && _f !== void 0 ? _f : 0;
-        new_total_am_fns += (_g = new_data[key].autometricized_functions.length) !== null && _g !== void 0 ? _g : 0;
+    let notAmAdditions = 0;
+    let oldTotalFns = 0;
+    let oldTotalAmFns = 0;
+    let newTotalFns = 0;
+    let newTotalAmFns = 0;
+    for (const [key, diffItem] of Object.entries(diff)) {
+        amAdditions +=
+            diffItem.existingNewlyAutometricized.length +
+                diffItem.newFunctionsAutometricized.length;
+        notAmAdditions += diffItem.newFunctionsNotAm.length;
+        amRemovals += diffItem.existingNoLongerAutometricized.length;
+        deletions += diffItem.deletedFunctions.length;
+        oldTotalFns +=
+            (_b = (_a = oldData[key].autometricizedFunctions.length) !== null && _a !== void 0 ? _a : 0 + oldData[key].autometricizedFunctions.length) !== null && _b !== void 0 ? _b : 0;
+        oldTotalAmFns += (_c = oldData[key].autometricizedFunctions.length) !== null && _c !== void 0 ? _c : 0;
+        newTotalFns +=
+            (_f = (_d = newData[key].autometricizedFunctions.length) !== null && _d !== void 0 ? _d : 0 + newData[key].autometricizedFunctions.length) !== null && _f !== void 0 ? _f : 0;
+        newTotalAmFns += (_g = newData[key].autometricizedFunctions.length) !== null && _g !== void 0 ? _g : 0;
     }
-    let summary_text = '';
-    if (am_additions >= am_removals) {
-        summary_text = `${summary_text}${am_additions - am_removals} metrics added (+${am_additions} / -${am_removals})\n`;
+    let summaryText = '';
+    if (amAdditions >= amRemovals) {
+        summaryText = `${summaryText}${amAdditions - amRemovals} metrics added (+${amAdditions} / -${amRemovals})\n`;
     }
     else {
-        summary_text = `${summary_text}${am_removals - am_additions} metrics removed (+${am_additions} / -${am_removals})\n`;
+        summaryText = `${summaryText}${amRemovals - amAdditions} metrics removed (+${amAdditions} / -${amRemovals})\n`;
     }
     if (deletions !== 0) {
-        summary_text = `${summary_text}${deletions} functions deleted\n`;
+        summaryText = `${summaryText}${deletions} functions deleted\n`;
     }
-    if (not_am_additions !== 0) {
-        summary_text = `${summary_text}${not_am_additions} new functions do _not_ have metrics.\n`;
+    if (notAmAdditions !== 0) {
+        summaryText = `${summaryText}${notAmAdditions} new functions do _not_ have metrics.\n`;
     }
-    if (new_total_fns !== 0 && old_total_fns !== 0) {
-        const new_cov = new_total_am_fns / new_total_fns;
-        const old_cov = old_total_am_fns / old_total_fns;
-        summary_text = `${summary_text}${100.0 * (new_cov - old_cov)}% change in metrics coverage.\n`;
+    if (newTotalFns !== 0 && oldTotalFns !== 0) {
+        const newCov = newTotalAmFns / newTotalFns;
+        const oldCov = oldTotalAmFns / oldTotalFns;
+        summaryText = `${summaryText}${100.0 * (newCov - oldCov)}% change in metrics coverage.\n`;
     }
-    else if (new_total_fns === 0) {
-        summary_text = `${summary_text}Removing all functions.\n`;
+    else if (newTotalFns === 0) {
+        summaryText = `${summaryText}Removing all functions.\n`;
     }
-    else if (old_total_fns === 0) {
-        const new_cov = new_total_am_fns / new_total_fns;
-        summary_text = `${summary_text}${100.0 * new_cov}% change in metrics coverage.\n`;
+    else if (oldTotalFns === 0) {
+        const newCov = newTotalAmFns / newTotalFns;
+        summaryText = `${summaryText}${100.0 * newCov}% change in metrics coverage.\n`;
     }
-    return summary_text;
+    return summaryText;
 }
-function format_diff_map(diff, repo_name) {
+function formatDiffMap(diff, repoName) {
     if (Object.entries(diff).length === 0) {
         return 'No data to report\n';
     }
     let ret = '';
-    for (const [root, diff_item] of Object.entries(diff)) {
-        ret = `${ret}In \`${format_root(root, repo_name)}\`\n\n`;
-        ret = `${ret}${format_diff_summary(diff_item)}\n\n`;
-        ret = `${ret}${format_diff_table(diff_item)}\n\n`;
+    for (const [root, diffItem] of Object.entries(diff)) {
+        ret = `${ret}In \`${formatRoot(root, repoName)}\`\n\n`;
+        ret = `${ret}${formatDiffSummary(diffItem)}\n\n`;
+        ret = `${ret}${formatDiffTable(diffItem)}\n\n`;
     }
     return ret;
 }
-function format_diff_summary(diff) {
+function formatDiffSummary(diff) {
     var _a;
-    const new_fn_coverage = diff.new_functions_autometricized.length /
-        (diff.new_functions_autometricized.length +
-            diff.new_functions_not_am.length);
-    const diff_coverage_message = diff.coverage_ratio_diff
-        ? `${(_a = 100.0 * diff.coverage_ratio_diff) !== null && _a !== void 0 ? _a : 1}% change in metrics coverage.`
+    const newFnCoverage = diff.newFunctionsAutometricized.length /
+        (diff.newFunctionsAutometricized.length + diff.newFunctionsNotAm.length);
+    const diffCoverageMessage = diff.coverageRatioDiff
+        ? `${(_a = 100.0 * diff.coverageRatioDiff) !== null && _a !== void 0 ? _a : 1}% change in metrics coverage.`
         : '';
-    if (isNaN(new_fn_coverage)) {
-        return diff_coverage_message;
+    if (isNaN(newFnCoverage)) {
+        return diffCoverageMessage;
     }
-    return `${diff_coverage_message} (${100.0 * new_fn_coverage}% of new functions have metrics).`;
+    return `${diffCoverageMessage} (${100.0 * newFnCoverage}% of new functions have metrics).`;
 }
-function format_diff_table(diff) {
+function formatDiffTable(diff) {
     let ret = '';
-    if (diff.existing_newly_autometricized.length !== 0) {
+    if (diff.existingNewlyAutometricized.length !== 0) {
         ret = `${ret} ![Green square](https://placehold.co/15x15/c5f015/c5f015.png) Existing functions that get metrics now\n\n`;
-        ret = ret + table_am_function_list(diff.existing_newly_autometricized);
+        ret = ret + tableAmFunctionList(diff.existingNewlyAutometricized);
     }
     else {
         ret = `${ret}No existing function should start reporting metrics.\n\n`;
     }
-    if (diff.existing_no_longer_autometricized.length !== 0) {
+    if (diff.existingNoLongerAutometricized.length !== 0) {
         ret = `${ret} ![Red square](https://placehold.co/15x15/f03c15/f03c15.png) Existing functions that do not get metrics anymore\n\n`;
-        ret = ret + table_am_function_list(diff.existing_no_longer_autometricized);
+        ret = ret + tableAmFunctionList(diff.existingNoLongerAutometricized);
     }
     else {
         ret = `${ret}No existing function should stop reporting metrics.\n\n`;
     }
-    if (diff.new_functions_autometricized.length !== 0) {
+    if (diff.newFunctionsAutometricized.length !== 0) {
         ret = `${ret} ![Green square](https://placehold.co/15x15/c5f015/c5f015.png) New functions that get metrics\n\n`;
-        ret = ret + table_am_function_list(diff.new_functions_autometricized);
+        ret = ret + tableAmFunctionList(diff.newFunctionsAutometricized);
     }
-    else if (diff.new_functions_not_am.length !== 0) {
+    else if (diff.newFunctionsNotAm.length !== 0) {
         ret = `${ret}No new function has metrics.\n\n`;
     }
-    if (diff.new_functions_not_am.length !== 0) {
+    if (diff.newFunctionsNotAm.length !== 0) {
         ret = `${ret} ![Red square](https://placehold.co/15x15/f03c15/f03c15.png) New functions that do not get metrics\n\n`;
-        ret = ret + table_am_function_list(diff.existing_no_longer_autometricized);
+        ret = ret + tableAmFunctionList(diff.existingNoLongerAutometricized);
     }
-    else if (diff.new_functions_autometricized.length !== 0) {
+    else if (diff.newFunctionsAutometricized.length !== 0) {
         ret = `${ret}No new function is missing metrics!\n\n`;
     }
     return ret;
 }
-function format_dataset_map(stat_map, repo_name) {
-    if (Object.entries(stat_map).length === 0) {
+function formatDatasetMap(statMap, repoName) {
+    if (Object.entries(statMap).length === 0) {
         return 'No data to report\n';
     }
     let ret = '';
-    for (const [root, dataset] of Object.entries(stat_map)) {
-        ret = `${ret}In \`${format_root(root, repo_name)}\`\n\n`;
-        ret = `${ret}${format_dataset(dataset)}\n\n`;
+    for (const [root, dataset] of Object.entries(statMap)) {
+        ret = `${ret}In \`${formatRoot(root, repoName)}\`\n\n`;
+        ret = `${ret}${formatDataset(dataset)}\n\n`;
     }
     return ret;
 }
-function format_dataset(dataset) {
+function formatDataset(dataset) {
     let ret = '';
-    if (dataset.autometricized_functions.length !== 0) {
+    if (dataset.autometricizedFunctions.length !== 0) {
         ret = `${ret}Annotated functions\n\n`;
-        ret = ret + table_am_function_list(dataset.autometricized_functions);
+        ret = ret + tableAmFunctionList(dataset.autometricizedFunctions);
     }
     else {
         ret = `${ret}No annotated function to report.\n\n`;
     }
     return ret;
 }
-function table_am_function_list(list, force_single_table) {
+function tableAmFunctionList(list, forceSingleTable) {
     const PER_MODULE_TABLES_THRESHOLD = 10;
-    if (list.length < PER_MODULE_TABLES_THRESHOLD || force_single_table) {
+    if (list.length < PER_MODULE_TABLES_THRESHOLD || forceSingleTable) {
         let ret = '';
         ret = `${ret}|Module|Function|\n`;
         ret = `${ret}|------|--------|\n`;
@@ -454,16 +453,16 @@ function table_am_function_list(list, force_single_table) {
         return ret;
     }
     let ret = '';
-    const per_module_fn_list = {};
+    const perModuleFnList = {};
     for (const fn of list) {
-        if (!per_module_fn_list.hasOwnProperty(fn.module)) {
-            per_module_fn_list[fn.module] = [];
+        if (!perModuleFnList.hasOwnProperty(fn.module)) {
+            perModuleFnList[fn.module] = [];
         }
-        per_module_fn_list[fn.module].push(fn);
+        perModuleFnList[fn.module].push(fn);
     }
-    for (const [module_name, module_list] of Object.entries(per_module_fn_list)) {
-        ret = `${ret}Module ${module_name}:\n`;
-        ret = `${ret}${table_am_function_list(module_list, true)}\n`;
+    for (const [moduleName, moduleList] of Object.entries(perModuleFnList)) {
+        ret = `${ret}Module ${moduleName}:\n`;
+        ret = `${ret}${tableAmFunctionList(moduleList, true)}\n`;
     }
     return ret;
 }
@@ -481,48 +480,48 @@ function table_am_function_list(list, force_single_table) {
 Object.defineProperty(exports, "__esModule", ({ value: true }));
 exports.diffDataset = exports.diffDatasetMaps = void 0;
 const utils_1 = __nccwpck_require__(918);
-function diffDatasetMaps(head_map, base_map) {
+function diffDatasetMaps(headMap, baseMap) {
     var _a;
     const ret = {};
-    for (const [head_root, head_set] of Object.entries(head_map)) {
-        ret[head_root] = diffDataset(head_set, (_a = base_map[head_root]) !== null && _a !== void 0 ? _a : { autometricized_functions: [], other_functions: [] });
+    for (const [headRoot, headSet] of Object.entries(headMap)) {
+        ret[headRoot] = diffDataset(headSet, (_a = baseMap[headRoot]) !== null && _a !== void 0 ? _a : { autometricizedFunctions: [], otherFunctions: [] });
     }
-    for (const [base_root, base_set] of Object.entries(base_map)) {
-        if (head_map[base_root]) {
+    for (const [baseRoot, baseSet] of Object.entries(baseMap)) {
+        if (headMap[baseRoot]) {
             continue;
         }
-        ret[base_root] = diffDataset({ autometricized_functions: [], other_functions: [] }, base_set);
+        ret[baseRoot] = diffDataset({ autometricizedFunctions: [], otherFunctions: [] }, baseSet);
     }
     return ret;
 }
 exports.diffDatasetMaps = diffDatasetMaps;
-function diffDataset(head_set, base_set) {
-    const all_new_functions = [
-        ...head_set.autometricized_functions,
-        ...head_set.other_functions
+function diffDataset(headSet, baseSet) {
+    const allNewFunctions = [
+        ...headSet.autometricizedFunctions,
+        ...headSet.otherFunctions
     ];
-    const all_old_functions = [
-        ...base_set.autometricized_functions,
-        ...base_set.other_functions
+    const allOldFunctions = [
+        ...baseSet.autometricizedFunctions,
+        ...baseSet.otherFunctions
     ];
-    const all_added_functions = (0, utils_1.difference)(all_new_functions, all_old_functions);
-    const deleted_functions = (0, utils_1.difference)(all_old_functions, all_new_functions);
-    const new_functions_autometricized = (0, utils_1.intersection)(all_added_functions, head_set.autometricized_functions);
-    const new_functions_not_am = (0, utils_1.intersection)(all_added_functions, head_set.other_functions);
-    const existing_newly_autometricized = (0, utils_1.intersection)(base_set.other_functions, head_set.autometricized_functions);
-    const existing_no_longer_autometricized = (0, utils_1.intersection)(head_set.other_functions, base_set.autometricized_functions);
-    const new_coverage_ratio = head_set.autometricized_functions.length / all_new_functions.length;
-    const old_coverage_ratio = base_set.autometricized_functions.length / all_old_functions.length;
-    const coverage_ratio_diff = isNaN(new_coverage_ratio - old_coverage_ratio)
+    const allAddedFunctions = (0, utils_1.difference)(allNewFunctions, allOldFunctions);
+    const deletedFunctions = (0, utils_1.difference)(allOldFunctions, allNewFunctions);
+    const newFunctionsAutometricized = (0, utils_1.intersection)(allAddedFunctions, headSet.autometricizedFunctions);
+    const newFunctionsNotAm = (0, utils_1.intersection)(allAddedFunctions, headSet.otherFunctions);
+    const existingNewlyAutometricized = (0, utils_1.intersection)(baseSet.otherFunctions, headSet.autometricizedFunctions);
+    const existingNoLongerAutometricized = (0, utils_1.intersection)(headSet.otherFunctions, baseSet.autometricizedFunctions);
+    const newCoverageRatio = headSet.autometricizedFunctions.length / allNewFunctions.length;
+    const oldCoverageRatio = baseSet.autometricizedFunctions.length / allOldFunctions.length;
+    const coverageRatioDiff = isNaN(newCoverageRatio - oldCoverageRatio)
         ? undefined
-        : new_coverage_ratio - old_coverage_ratio;
+        : newCoverageRatio - oldCoverageRatio;
     return {
-        existing_newly_autometricized,
-        existing_no_longer_autometricized,
-        deleted_functions,
-        new_functions_autometricized,
-        new_functions_not_am,
-        coverage_ratio_diff
+        existingNewlyAutometricized,
+        existingNoLongerAutometricized,
+        deletedFunctions,
+        newFunctionsAutometricized,
+        newFunctionsNotAm,
+        coverageRatioDiff
     };
 }
 exports.diffDataset = diffDataset;
@@ -674,44 +673,44 @@ async function run() {
         const octokit = github.getOctokit(token, {
             userAgent: 'Autometrics/diff-metrics v1'
         });
-        const ts_roots = core.getMultilineInput(TS_ROOTS);
-        const rs_roots = core.getMultilineInput(RS_ROOTS);
+        const tsRoots = core.getMultilineInput(TS_ROOTS);
+        const rsRoots = core.getMultilineInput(RS_ROOTS);
         const retention = parseInt(core.getInput(RETENTION));
-        const am_version = core.getInput(AM_VERSION) !== '' ? core.getInput(AM_VERSION) : undefined;
-        core.startGroup(`Downloading am_list matching ${am_version !== null && am_version !== void 0 ? am_version : 'latest'}`);
-        const am_path = await (0, am_list_1.downloadAmList)(octokit, am_version);
+        const amVersion = core.getInput(AM_VERSION) !== '' ? core.getInput(AM_VERSION) : undefined;
+        core.startGroup(`Downloading am_list matching ${amVersion !== null && amVersion !== void 0 ? amVersion : 'latest'}`);
+        const amPath = await (0, am_list_1.downloadAmList)(octokit, amVersion);
         core.endGroup();
         core.startGroup('[head] Building datasets for head branch');
-        const new_am_datasets = {};
+        const newAmDatasets = {};
         // eslint-disable-next-line @typescript-eslint/no-unused-vars
-        for (const ts_root of ts_roots) {
+        for (const tsRoot of tsRoots) {
             core.warning('Typescript is not supported by am_list yet.');
         }
-        for (const rs_root of rs_roots) {
-            new_am_datasets[rs_root] = await (0, am_list_1.computeDataSet)(am_path, rs_root, 'rust');
+        for (const rsRoot of rsRoots) {
+            newAmDatasets[rsRoot] = await (0, am_list_1.computeDataSet)(amPath, rsRoot, 'rust');
         }
         const headSha = (_b = (_a = payload.pull_request) === null || _a === void 0 ? void 0 : _a.head.sha) !== null && _b !== void 0 ? _b : payload.after;
-        core.info(JSON.stringify(new_am_datasets, undefined, 2));
-        await (0, artifact_1.storeDataSetMap)(`autometrics-after-${headSha}`, new_am_datasets, retention);
+        core.info(JSON.stringify(newAmDatasets, undefined, 2));
+        await (0, artifact_1.storeDataSetMap)(`autometrics-after-${headSha}`, newAmDatasets, retention);
         core.endGroup();
         // Setting up the base state to compare to.
         const baseSha = await (0, gitops_1.checkoutBaseState)(payload);
         core.startGroup('[base] Building datasets for base state');
-        const old_am_datasets = {};
+        const oldAmDatasets = {};
         // eslint-disable-next-line @typescript-eslint/no-unused-vars
-        for (const ts_root of ts_roots) {
+        for (const tsRoot of tsRoots) {
             core.warning('Typescript is not supported by am_list yet.');
         }
-        for (const rs_root of rs_roots) {
-            old_am_datasets[rs_root] = await (0, am_list_1.computeDataSet)(am_path, rs_root, 'rust');
+        for (const rsRoot of rsRoots) {
+            oldAmDatasets[rsRoot] = await (0, am_list_1.computeDataSet)(amPath, rsRoot, 'rust');
         }
-        core.info(JSON.stringify(old_am_datasets, undefined, 2));
-        await (0, artifact_1.storeDataSetMap)(`autometrics-before-${baseSha}`, old_am_datasets, retention);
+        core.info(JSON.stringify(oldAmDatasets, undefined, 2));
+        await (0, artifact_1.storeDataSetMap)(`autometrics-before-${baseSha}`, oldAmDatasets, retention);
         core.endGroup();
         core.startGroup('Computing and saving the difference between the datasets');
-        const dataset_diff = (0, diff_data_1.diffDatasetMaps)(new_am_datasets, old_am_datasets);
-        core.info(JSON.stringify(dataset_diff, undefined, 2));
-        await (0, artifact_1.storeDataSetDiffMap)(`autometrics-diff-${baseSha}-${headSha}`, dataset_diff, retention);
+        const datasetDiff = (0, diff_data_1.diffDatasetMaps)(newAmDatasets, oldAmDatasets);
+        core.info(JSON.stringify(datasetDiff, undefined, 2));
+        await (0, artifact_1.storeDataSetDiffMap)(`autometrics-diff-${baseSha}-${headSha}`, datasetDiff, retention);
         core.endGroup();
         const issueRef = (_c = payload.pull_request) === null || _c === void 0 ? void 0 : _c.number;
         if (!issueRef) {
@@ -720,9 +719,9 @@ async function run() {
         }
         core.startGroup(`Post comment on PR ${issueRef}`);
         await (0, comment_pr_1.updateOrPostComment)(octokit, github.context, {
-            old: old_am_datasets,
-            new: new_am_datasets,
-            diff: dataset_diff
+            old: oldAmDatasets,
+            new: newAmDatasets,
+            diff: datasetDiff
         });
         core.endGroup();
     }

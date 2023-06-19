@@ -5,12 +5,12 @@ import {AmFunction, DataSet, DataSetMap} from './am_list'
 import {difference, intersection} from './utils'
 
 export type DataSetDiff = {
-  existing_newly_autometricized: AmFunction[]
-  existing_no_longer_autometricized: AmFunction[]
-  deleted_functions: AmFunction[]
-  new_functions_autometricized: AmFunction[]
-  new_functions_not_am: AmFunction[]
-  coverage_ratio_diff?: number
+  existingNewlyAutometricized: AmFunction[]
+  existingNoLongerAutometricized: AmFunction[]
+  deletedFunctions: AmFunction[]
+  newFunctionsAutometricized: AmFunction[]
+  newFunctionsNotAm: AmFunction[]
+  coverageRatioDiff?: number
 }
 
 export type DataSetDiffMap = {
@@ -18,76 +18,76 @@ export type DataSetDiffMap = {
 }
 
 export function diffDatasetMaps(
-  head_map: DataSetMap,
-  base_map: DataSetMap
+  headMap: DataSetMap,
+  baseMap: DataSetMap
 ): DataSetDiffMap {
   const ret: DataSetDiffMap = {}
-  for (const [head_root, head_set] of Object.entries(head_map)) {
-    ret[head_root] = diffDataset(
-      head_set,
-      base_map[head_root] ?? {autometricized_functions: [], other_functions: []}
+  for (const [headRoot, headSet] of Object.entries(headMap)) {
+    ret[headRoot] = diffDataset(
+      headSet,
+      baseMap[headRoot] ?? {autometricizedFunctions: [], otherFunctions: []}
     )
   }
 
-  for (const [base_root, base_set] of Object.entries(base_map)) {
-    if (head_map[base_root]) {
+  for (const [baseRoot, baseSet] of Object.entries(baseMap)) {
+    if (headMap[baseRoot]) {
       continue
     }
-    ret[base_root] = diffDataset(
-      {autometricized_functions: [], other_functions: []},
-      base_set
+    ret[baseRoot] = diffDataset(
+      {autometricizedFunctions: [], otherFunctions: []},
+      baseSet
     )
   }
 
   return ret
 }
 
-export function diffDataset(head_set: DataSet, base_set: DataSet): DataSetDiff {
-  const all_new_functions = [
-    ...head_set.autometricized_functions,
-    ...head_set.other_functions
+export function diffDataset(headSet: DataSet, baseSet: DataSet): DataSetDiff {
+  const allNewFunctions = [
+    ...headSet.autometricizedFunctions,
+    ...headSet.otherFunctions
   ]
-  const all_old_functions = [
-    ...base_set.autometricized_functions,
-    ...base_set.other_functions
+  const allOldFunctions = [
+    ...baseSet.autometricizedFunctions,
+    ...baseSet.otherFunctions
   ]
 
-  const all_added_functions = difference(all_new_functions, all_old_functions)
-  const deleted_functions = difference(all_old_functions, all_new_functions)
+  const allAddedFunctions = difference(allNewFunctions, allOldFunctions)
+  const deletedFunctions = difference(allOldFunctions, allNewFunctions)
 
-  const new_functions_autometricized = intersection(
-    all_added_functions,
-    head_set.autometricized_functions
+  const newFunctionsAutometricized = intersection(
+    allAddedFunctions,
+    headSet.autometricizedFunctions
   )
-  const new_functions_not_am = intersection(
-    all_added_functions,
-    head_set.other_functions
-  )
-
-  const existing_newly_autometricized = intersection(
-    base_set.other_functions,
-    head_set.autometricized_functions
-  )
-  const existing_no_longer_autometricized = intersection(
-    head_set.other_functions,
-    base_set.autometricized_functions
+  const newFunctionsNotAm = intersection(
+    allAddedFunctions,
+    headSet.otherFunctions
   )
 
-  const new_coverage_ratio =
-    head_set.autometricized_functions.length / all_new_functions.length
-  const old_coverage_ratio =
-    base_set.autometricized_functions.length / all_old_functions.length
+  const existingNewlyAutometricized = intersection(
+    baseSet.otherFunctions,
+    headSet.autometricizedFunctions
+  )
+  const existingNoLongerAutometricized = intersection(
+    headSet.otherFunctions,
+    baseSet.autometricizedFunctions
+  )
 
-  const coverage_ratio_diff = isNaN(new_coverage_ratio - old_coverage_ratio)
+  const newCoverageRatio =
+    headSet.autometricizedFunctions.length / allNewFunctions.length
+  const oldCoverageRatio =
+    baseSet.autometricizedFunctions.length / allOldFunctions.length
+
+  const coverageRatioDiff = isNaN(newCoverageRatio - oldCoverageRatio)
     ? undefined
-    : new_coverage_ratio - old_coverage_ratio
+    : newCoverageRatio - oldCoverageRatio
 
   return {
-    existing_newly_autometricized,
-    existing_no_longer_autometricized,
-    deleted_functions,
-    new_functions_autometricized,
-    new_functions_not_am,
-    coverage_ratio_diff
+    existingNewlyAutometricized,
+    existingNoLongerAutometricized,
+    deletedFunctions,
+    newFunctionsAutometricized,
+    newFunctionsNotAm,
+    coverageRatioDiff
   }
 }
