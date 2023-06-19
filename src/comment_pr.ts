@@ -89,14 +89,20 @@ export async function updateOrPostComment(
 }
 
 function format_comment(stats: DiffStats, repo_name: string): string {
-  const header = `${COMMENT_HEADER}\n${format_summary(stats.diff)}`
+  const header = `${COMMENT_HEADER}\n${format_summary(
+    stats.diff,
+    stats.old,
+    stats.new
+  )}`
 
   if (
     Object.entries(stats.diff).length === 0 ||
     Object.values(stats.diff).every(
       dataset_diff =>
-        dataset_diff.newly_autometricized.length === 0 &&
-        dataset_diff.no_longer_autometricized.length === 0
+        dataset_diff.existing_newly_autometricized.length === 0 &&
+        dataset_diff.new_functions_autometricized.length === 0 &&
+        dataset_diff.new_functions_not_am.length === 0 &&
+        dataset_diff.existing_no_longer_autometricized.length === 0
     )
   ) {
     return `${header}\n${COMMENT_FOOTER}`
@@ -126,33 +132,88 @@ function format_root(root: string, repo_name: string): string {
   return root
 }
 
-function format_summary(diff: DataSetDiffMap): string {
+function format_summary(
+  diff: DataSetDiffMap,
+  old_data: DataSetMap,
+  new_data: DataSetMap
+): string {
   if (
     Object.entries(diff).length === 0 ||
     Object.values(diff).every(
       dataset_diff =>
-        dataset_diff.newly_autometricized.length === 0 &&
-        dataset_diff.no_longer_autometricized.length === 0
+        dataset_diff.existing_newly_autometricized.length === 0 &&
+        dataset_diff.new_functions_autometricized.length === 0 &&
+        dataset_diff.new_functions_not_am.length === 0 &&
+        dataset_diff.existing_no_longer_autometricized.length === 0
     )
   ) {
     return 'No change\n'
   }
-  let additions = 0
-  let removals = 0
-  for (const [, diff_item] of Object.entries(diff)) {
-    additions += diff_item.newly_autometricized.length
-    removals += diff_item.no_longer_autometricized.length
+
+  let am_additions = 0
+  let am_removals = 0
+  let deletions = 0
+  let not_am_additions = 0
+  let old_total_fns = 0
+  let old_total_am_fns = 0
+  let new_total_fns = 0
+  let new_total_am_fns = 0
+  for (const [key, diff_item] of Object.entries(diff)) {
+    am_additions +=
+      diff_item.existing_newly_autometricized.length +
+      diff_item.new_functions_autometricized.length
+    not_am_additions += diff_item.new_functions_not_am.length
+    am_removals += diff_item.existing_no_longer_autometricized.length
+    deletions += diff_item.deleted_functions.length
+
+    old_total_fns +=
+      old_data[key].autometricized_functions.length ??
+      0 + old_data[key].autometricized_functions.length ??
+      0
+    old_total_am_fns += old_data[key].autometricized_functions.length ?? 0
+    new_total_fns +=
+      new_data[key].autometricized_functions.length ??
+      0 + new_data[key].autometricized_functions.length ??
+      0
+    new_total_am_fns += new_data[key].autometricized_functions.length ?? 0
   }
 
-  if (additions >= removals) {
-    return `${
-      additions - removals
-    } metrics added (+${additions} / -${removals})`
+  let summary_text = ''
+
+  if (am_additions >= am_removals) {
+    summary_text = `${summary_text}${
+      am_additions - am_removals
+    } metrics added (+${am_additions} / -${am_removals})\n`
   } else {
-    return `${
-      removals - additions
-    } metrics removed (+${additions} / -${removals})`
+    summary_text = `${summary_text}${
+      am_removals - am_additions
+    } metrics removed (+${am_additions} / -${am_removals})\n`
   }
+
+  if (deletions !== 0) {
+    summary_text = `${summary_text}${deletions} functions deleted\n`
+  }
+
+  if (not_am_additions !== 0) {
+    summary_text = `${summary_text}${not_am_additions} new functions do _not_ have metrics.\n`
+  }
+
+  if (new_total_fns !== 0 && old_total_fns !== 0) {
+    const new_cov = new_total_am_fns / new_total_fns
+    const old_cov = old_total_am_fns / old_total_fns
+    summary_text = `${summary_text}${
+      100.0 * (new_cov - old_cov)
+    }% change in metrics coverage.\n`
+  } else if (new_total_fns === 0) {
+    summary_text = `${summary_text}Removing all functions.\n`
+  } else if (old_total_fns === 0) {
+    const new_cov = new_total_am_fns / new_total_fns
+    summary_text = `${summary_text}${
+      100.0 * new_cov
+    }% change in metrics coverage.\n`
+  }
+
+  return summary_text
 }
 
 function format_diff_map(diff: DataSetDiffMap, repo_name: string): string {
@@ -162,25 +223,57 @@ function format_diff_map(diff: DataSetDiffMap, repo_name: string): string {
   let ret = ''
   for (const [root, diff_item] of Object.entries(diff)) {
     ret = `${ret}In \`${format_root(root, repo_name)}\`\n\n`
+    ret = `${ret}${format_diff_summary(diff_item)}\n\n`
     ret = `${ret}${format_diff_table(diff_item)}\n\n`
   }
 
   return ret
 }
 
+function format_diff_summary(diff: DataSetDiff): string {
+  const new_fn_coverage =
+    diff.new_functions_autometricized.length /
+    (diff.new_functions_autometricized.length +
+      diff.new_functions_not_am.length)
+  const diff_coverage_message = diff.coverage_ratio_diff
+    ? `${100.0 * diff.coverage_ratio_diff ?? 1}% change in metrics coverage.`
+    : ''
+  if (isNaN(new_fn_coverage)) {
+    return diff_coverage_message
+  }
+  return `${diff_coverage_message} (${
+    100.0 * new_fn_coverage
+  }% of new functions have metrics).`
+}
+
 function format_diff_table(diff: DataSetDiff): string {
   let ret = ''
-  if (diff.newly_autometricized.length !== 0) {
-    ret = `${ret} ![Green square](https://placehold.co/15x15/c5f015/c5f015.png) Newly annotated functions\n\n`
-    ret = ret + table_am_function_list(diff.newly_autometricized)
+  if (diff.existing_newly_autometricized.length !== 0) {
+    ret = `${ret} ![Green square](https://placehold.co/15x15/c5f015/c5f015.png) Existing functions that get metrics now\n\n`
+    ret = ret + table_am_function_list(diff.existing_newly_autometricized)
   } else {
-    ret = `${ret}No newly annotated function to report here.\n\n`
+    ret = `${ret}No existing function should start reporting metrics.\n\n`
   }
-  if (diff.no_longer_autometricized.length !== 0) {
-    ret = `${ret} ![Red square](https://placehold.co/15x15/f03c15/f03c15.png) No longer annotated functions\n\n`
-    ret = ret + table_am_function_list(diff.no_longer_autometricized)
+
+  if (diff.existing_no_longer_autometricized.length !== 0) {
+    ret = `${ret} ![Red square](https://placehold.co/15x15/f03c15/f03c15.png) Existing functions that do not get metrics anymore\n\n`
+    ret = ret + table_am_function_list(diff.existing_no_longer_autometricized)
   } else {
-    ret = `${ret}No function that is no longer annotated to report here.\n\n`
+    ret = `${ret}No existing function should stop reporting metrics.\n\n`
+  }
+
+  if (diff.new_functions_autometricized.length !== 0) {
+    ret = `${ret} ![Green square](https://placehold.co/15x15/c5f015/c5f015.png) New functions that get metrics\n\n`
+    ret = ret + table_am_function_list(diff.new_functions_autometricized)
+  } else if (diff.new_functions_not_am.length !== 0) {
+    ret = `${ret}No new function has metrics.\n\n`
+  }
+
+  if (diff.new_functions_not_am.length !== 0) {
+    ret = `${ret} ![Red square](https://placehold.co/15x15/f03c15/f03c15.png) New functions that do not get metrics\n\n`
+    ret = ret + table_am_function_list(diff.existing_no_longer_autometricized)
+  } else if (diff.new_functions_autometricized.length !== 0) {
+    ret = `${ret}No new function is missing metrics!\n\n`
   }
 
   return ret

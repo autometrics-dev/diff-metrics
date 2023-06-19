@@ -43,6 +43,7 @@ const child_process_1 = __nccwpck_require__(2081);
 const core = __importStar(__nccwpck_require__(2186));
 const util_1 = __nccwpck_require__(3837);
 const semver = __importStar(__nccwpck_require__(1383));
+const utils_1 = __nccwpck_require__(918);
 const execAsync = (0, util_1.promisify)(child_process_1.exec);
 const OWNER = 'autometrics-dev';
 const REPO = 'am_list';
@@ -104,9 +105,14 @@ async function getAmListReleaseId(octokit, versionConstraint) {
 }
 exports.getAmListReleaseId = getAmListReleaseId;
 async function computeDataSet(am_list, project_root, language) {
-    const { stdout } = await execAsync(`${am_list} list -l ${language} ${project_root}`);
+    const { stdout: all_fns } = await execAsync(`${am_list} list -a -l ${language} ${project_root}`);
+    const allFunctions = JSON.parse(all_fns);
+    const { stdout: am_fns } = await execAsync(`${am_list} list -l ${language} ${project_root}`);
+    const amFunctions = JSON.parse(am_fns);
+    const otherFunctions = (0, utils_1.difference)(allFunctions, amFunctions);
     return {
-        autometricized_functions: JSON.parse(stdout)
+        autometricized_functions: amFunctions,
+        other_functions: otherFunctions
     };
 }
 exports.computeDataSet = computeDataSet;
@@ -160,8 +166,8 @@ async function storeJsonArtifact(name, artifactName, data, retention) {
         retentionDays: retention
     });
 }
-async function storeDataSetMap(name, data, retention) {
-    await storeJsonArtifact(name, DATASET_ARTIFACT_NAME, JSON.stringify(data), retention);
+async function storeDataSetMap(name, am_data, retention) {
+    await storeJsonArtifact(name, DATASET_ARTIFACT_NAME, JSON.stringify(am_data), retention);
 }
 exports.storeDataSetMap = storeDataSetMap;
 async function storeDataSetDiffMap(name, data, retention) {
@@ -277,10 +283,12 @@ async function updateOrPostComment(octokit, context, stats) {
 }
 exports.updateOrPostComment = updateOrPostComment;
 function format_comment(stats, repo_name) {
-    const header = `${COMMENT_HEADER}\n${format_summary(stats.diff)}`;
+    const header = `${COMMENT_HEADER}\n${format_summary(stats.diff, stats.old, stats.new)}`;
     if (Object.entries(stats.diff).length === 0 ||
-        Object.values(stats.diff).every(dataset_diff => dataset_diff.newly_autometricized.length === 0 &&
-            dataset_diff.no_longer_autometricized.length === 0)) {
+        Object.values(stats.diff).every(dataset_diff => dataset_diff.existing_newly_autometricized.length === 0 &&
+            dataset_diff.new_functions_autometricized.length === 0 &&
+            dataset_diff.new_functions_not_am.length === 0 &&
+            dataset_diff.existing_no_longer_autometricized.length === 0)) {
         return `${header}\n${COMMENT_FOOTER}`;
     }
     return (`${header}\n` +
@@ -296,24 +304,63 @@ function format_root(root, repo_name) {
     }
     return root;
 }
-function format_summary(diff) {
+function format_summary(diff, old_data, new_data) {
+    var _a, _b, _c, _d, _f, _g;
     if (Object.entries(diff).length === 0 ||
-        Object.values(diff).every(dataset_diff => dataset_diff.newly_autometricized.length === 0 &&
-            dataset_diff.no_longer_autometricized.length === 0)) {
+        Object.values(diff).every(dataset_diff => dataset_diff.existing_newly_autometricized.length === 0 &&
+            dataset_diff.new_functions_autometricized.length === 0 &&
+            dataset_diff.new_functions_not_am.length === 0 &&
+            dataset_diff.existing_no_longer_autometricized.length === 0)) {
         return 'No change\n';
     }
-    let additions = 0;
-    let removals = 0;
-    for (const [, diff_item] of Object.entries(diff)) {
-        additions += diff_item.newly_autometricized.length;
-        removals += diff_item.no_longer_autometricized.length;
+    let am_additions = 0;
+    let am_removals = 0;
+    let deletions = 0;
+    let not_am_additions = 0;
+    let old_total_fns = 0;
+    let old_total_am_fns = 0;
+    let new_total_fns = 0;
+    let new_total_am_fns = 0;
+    for (const [key, diff_item] of Object.entries(diff)) {
+        am_additions +=
+            diff_item.existing_newly_autometricized.length +
+                diff_item.new_functions_autometricized.length;
+        not_am_additions += diff_item.new_functions_not_am.length;
+        am_removals += diff_item.existing_no_longer_autometricized.length;
+        deletions += diff_item.deleted_functions.length;
+        old_total_fns +=
+            (_b = (_a = old_data[key].autometricized_functions.length) !== null && _a !== void 0 ? _a : 0 + old_data[key].autometricized_functions.length) !== null && _b !== void 0 ? _b : 0;
+        old_total_am_fns += (_c = old_data[key].autometricized_functions.length) !== null && _c !== void 0 ? _c : 0;
+        new_total_fns +=
+            (_f = (_d = new_data[key].autometricized_functions.length) !== null && _d !== void 0 ? _d : 0 + new_data[key].autometricized_functions.length) !== null && _f !== void 0 ? _f : 0;
+        new_total_am_fns += (_g = new_data[key].autometricized_functions.length) !== null && _g !== void 0 ? _g : 0;
     }
-    if (additions >= removals) {
-        return `${additions - removals} metrics added (+${additions} / -${removals})`;
+    let summary_text = '';
+    if (am_additions >= am_removals) {
+        summary_text = `${summary_text}${am_additions - am_removals} metrics added (+${am_additions} / -${am_removals})\n`;
     }
     else {
-        return `${removals - additions} metrics removed (+${additions} / -${removals})`;
+        summary_text = `${summary_text}${am_removals - am_additions} metrics removed (+${am_additions} / -${am_removals})\n`;
     }
+    if (deletions !== 0) {
+        summary_text = `${summary_text}${deletions} functions deleted\n`;
+    }
+    if (not_am_additions !== 0) {
+        summary_text = `${summary_text}${not_am_additions} new functions do _not_ have metrics.\n`;
+    }
+    if (new_total_fns !== 0 && old_total_fns !== 0) {
+        const new_cov = new_total_am_fns / new_total_fns;
+        const old_cov = old_total_am_fns / old_total_fns;
+        summary_text = `${summary_text}${100.0 * (new_cov - old_cov)}% change in metrics coverage.\n`;
+    }
+    else if (new_total_fns === 0) {
+        summary_text = `${summary_text}Removing all functions.\n`;
+    }
+    else if (old_total_fns === 0) {
+        const new_cov = new_total_am_fns / new_total_fns;
+        summary_text = `${summary_text}${100.0 * new_cov}% change in metrics coverage.\n`;
+    }
+    return summary_text;
 }
 function format_diff_map(diff, repo_name) {
     if (Object.entries(diff).length === 0) {
@@ -322,25 +369,53 @@ function format_diff_map(diff, repo_name) {
     let ret = '';
     for (const [root, diff_item] of Object.entries(diff)) {
         ret = `${ret}In \`${format_root(root, repo_name)}\`\n\n`;
+        ret = `${ret}${format_diff_summary(diff_item)}\n\n`;
         ret = `${ret}${format_diff_table(diff_item)}\n\n`;
     }
     return ret;
 }
+function format_diff_summary(diff) {
+    var _a;
+    const new_fn_coverage = diff.new_functions_autometricized.length /
+        (diff.new_functions_autometricized.length +
+            diff.new_functions_not_am.length);
+    const diff_coverage_message = diff.coverage_ratio_diff
+        ? `${(_a = 100.0 * diff.coverage_ratio_diff) !== null && _a !== void 0 ? _a : 1}% change in metrics coverage.`
+        : '';
+    if (isNaN(new_fn_coverage)) {
+        return diff_coverage_message;
+    }
+    return `${diff_coverage_message} (${100.0 * new_fn_coverage}% of new functions have metrics).`;
+}
 function format_diff_table(diff) {
     let ret = '';
-    if (diff.newly_autometricized.length !== 0) {
-        ret = `${ret} ![Green square](https://placehold.co/15x15/c5f015/c5f015.png) Newly annotated functions\n\n`;
-        ret = ret + table_am_function_list(diff.newly_autometricized);
+    if (diff.existing_newly_autometricized.length !== 0) {
+        ret = `${ret} ![Green square](https://placehold.co/15x15/c5f015/c5f015.png) Existing functions that get metrics now\n\n`;
+        ret = ret + table_am_function_list(diff.existing_newly_autometricized);
     }
     else {
-        ret = `${ret}No newly annotated function to report here.\n\n`;
+        ret = `${ret}No existing function should start reporting metrics.\n\n`;
     }
-    if (diff.no_longer_autometricized.length !== 0) {
-        ret = `${ret} ![Red square](https://placehold.co/15x15/f03c15/f03c15.png) No longer annotated functions\n\n`;
-        ret = ret + table_am_function_list(diff.no_longer_autometricized);
+    if (diff.existing_no_longer_autometricized.length !== 0) {
+        ret = `${ret} ![Red square](https://placehold.co/15x15/f03c15/f03c15.png) Existing functions that do not get metrics anymore\n\n`;
+        ret = ret + table_am_function_list(diff.existing_no_longer_autometricized);
     }
     else {
-        ret = `${ret}No function that is no longer annotated to report here.\n\n`;
+        ret = `${ret}No existing function should stop reporting metrics.\n\n`;
+    }
+    if (diff.new_functions_autometricized.length !== 0) {
+        ret = `${ret} ![Green square](https://placehold.co/15x15/c5f015/c5f015.png) New functions that get metrics\n\n`;
+        ret = ret + table_am_function_list(diff.new_functions_autometricized);
+    }
+    else if (diff.new_functions_not_am.length !== 0) {
+        ret = `${ret}No new function has metrics.\n\n`;
+    }
+    if (diff.new_functions_not_am.length !== 0) {
+        ret = `${ret} ![Red square](https://placehold.co/15x15/f03c15/f03c15.png) New functions that do not get metrics\n\n`;
+        ret = ret + table_am_function_list(diff.existing_no_longer_autometricized);
+    }
+    else if (diff.new_functions_autometricized.length !== 0) {
+        ret = `${ret}No new function is missing metrics!\n\n`;
     }
     return ret;
 }
@@ -397,7 +472,7 @@ function table_am_function_list(list, force_single_table) {
 /***/ }),
 
 /***/ 1360:
-/***/ ((__unused_webpack_module, exports) => {
+/***/ ((__unused_webpack_module, exports, __nccwpck_require__) => {
 
 "use strict";
 
@@ -405,50 +480,52 @@ function table_am_function_list(list, force_single_table) {
 // to be exposed as a PR commet
 Object.defineProperty(exports, "__esModule", ({ value: true }));
 exports.diffDataset = exports.diffDatasetMaps = void 0;
+const utils_1 = __nccwpck_require__(918);
 function diffDatasetMaps(head_map, base_map) {
     var _a;
     const ret = {};
     for (const [head_root, head_set] of Object.entries(head_map)) {
-        ret[head_root] = diffDataset(head_set, (_a = base_map[head_root]) !== null && _a !== void 0 ? _a : { autometricized_functions: [] });
+        ret[head_root] = diffDataset(head_set, (_a = base_map[head_root]) !== null && _a !== void 0 ? _a : { autometricized_functions: [], other_functions: [] });
     }
     for (const [base_root, base_set] of Object.entries(base_map)) {
         if (head_map[base_root]) {
             continue;
         }
-        ret[base_root] = diffDataset({ autometricized_functions: [] }, base_set);
+        ret[base_root] = diffDataset({ autometricized_functions: [], other_functions: [] }, base_set);
     }
     return ret;
 }
 exports.diffDatasetMaps = diffDatasetMaps;
 function diffDataset(head_set, base_set) {
-    const head = toSet(head_set);
-    const base = toSet(base_set);
+    const all_new_functions = [
+        ...head_set.autometricized_functions,
+        ...head_set.other_functions
+    ];
+    const all_old_functions = [
+        ...base_set.autometricized_functions,
+        ...base_set.other_functions
+    ];
+    const all_added_functions = (0, utils_1.difference)(all_new_functions, all_old_functions);
+    const deleted_functions = (0, utils_1.difference)(all_old_functions, all_new_functions);
+    const new_functions_autometricized = (0, utils_1.intersection)(all_added_functions, head_set.autometricized_functions);
+    const new_functions_not_am = (0, utils_1.intersection)(all_added_functions, head_set.other_functions);
+    const existing_newly_autometricized = (0, utils_1.intersection)(base_set.other_functions, head_set.autometricized_functions);
+    const existing_no_longer_autometricized = (0, utils_1.intersection)(head_set.other_functions, base_set.autometricized_functions);
+    const new_coverage_ratio = head_set.autometricized_functions.length / all_new_functions.length;
+    const old_coverage_ratio = base_set.autometricized_functions.length / all_old_functions.length;
+    const coverage_ratio_diff = isNaN(new_coverage_ratio - old_coverage_ratio)
+        ? undefined
+        : new_coverage_ratio - old_coverage_ratio;
     return {
-        newly_autometricized: difference(head, base),
-        no_longer_autometricized: difference(base, head)
+        existing_newly_autometricized,
+        existing_no_longer_autometricized,
+        deleted_functions,
+        new_functions_autometricized,
+        new_functions_not_am,
+        coverage_ratio_diff
     };
 }
 exports.diffDataset = diffDataset;
-function toSet(dataset) {
-    const ret = new Set();
-    for (const fn of dataset.autometricized_functions) {
-        ret.add(JSON.stringify(fn));
-    }
-    return ret;
-}
-// Returns what's in A but not in B
-// This function should not be public because of the unsafe typecasting it does in the JSON.parse call.
-function difference(setA, setB) {
-    const _difference = new Set(setA);
-    for (const elem of setB) {
-        _difference.delete(elem);
-    }
-    const ret = [];
-    for (const fn of _difference.values()) {
-        ret.push(JSON.parse(fn));
-    }
-    return ret;
-}
 
 
 /***/ }),
@@ -605,34 +682,34 @@ async function run() {
         const am_path = await (0, am_list_1.downloadAmList)(octokit, am_version);
         core.endGroup();
         core.startGroup('[head] Building datasets for head branch');
-        const new_datasets = {};
+        const new_am_datasets = {};
         // eslint-disable-next-line @typescript-eslint/no-unused-vars
         for (const ts_root of ts_roots) {
             core.warning('Typescript is not supported by am_list yet.');
         }
         for (const rs_root of rs_roots) {
-            new_datasets[rs_root] = await (0, am_list_1.computeDataSet)(am_path, rs_root, 'rust');
+            new_am_datasets[rs_root] = await (0, am_list_1.computeDataSet)(am_path, rs_root, 'rust');
         }
         const headSha = (_b = (_a = payload.pull_request) === null || _a === void 0 ? void 0 : _a.head.sha) !== null && _b !== void 0 ? _b : payload.after;
-        core.info(JSON.stringify(new_datasets, undefined, 2));
-        await (0, artifact_1.storeDataSetMap)(`autometrics-after-${headSha}`, new_datasets, retention);
+        core.info(JSON.stringify(new_am_datasets, undefined, 2));
+        await (0, artifact_1.storeDataSetMap)(`autometrics-after-${headSha}`, new_am_datasets, retention);
         core.endGroup();
         // Setting up the base state to compare to.
         const baseSha = await (0, gitops_1.checkoutBaseState)(payload);
         core.startGroup('[base] Building datasets for base state');
-        const old_datasets = {};
+        const old_am_datasets = {};
         // eslint-disable-next-line @typescript-eslint/no-unused-vars
         for (const ts_root of ts_roots) {
             core.warning('Typescript is not supported by am_list yet.');
         }
         for (const rs_root of rs_roots) {
-            old_datasets[rs_root] = await (0, am_list_1.computeDataSet)(am_path, rs_root, 'rust');
+            old_am_datasets[rs_root] = await (0, am_list_1.computeDataSet)(am_path, rs_root, 'rust');
         }
-        core.info(JSON.stringify(old_datasets, undefined, 2));
-        await (0, artifact_1.storeDataSetMap)(`autometrics-before-${baseSha}`, old_datasets, retention);
+        core.info(JSON.stringify(old_am_datasets, undefined, 2));
+        await (0, artifact_1.storeDataSetMap)(`autometrics-before-${baseSha}`, old_am_datasets, retention);
         core.endGroup();
         core.startGroup('Computing and saving the difference between the datasets');
-        const dataset_diff = (0, diff_data_1.diffDatasetMaps)(new_datasets, old_datasets);
+        const dataset_diff = (0, diff_data_1.diffDatasetMaps)(new_am_datasets, old_am_datasets);
         core.info(JSON.stringify(dataset_diff, undefined, 2));
         await (0, artifact_1.storeDataSetDiffMap)(`autometrics-diff-${baseSha}-${headSha}`, dataset_diff, retention);
         core.endGroup();
@@ -643,8 +720,8 @@ async function run() {
         }
         core.startGroup(`Post comment on PR ${issueRef}`);
         await (0, comment_pr_1.updateOrPostComment)(octokit, github.context, {
-            old: old_datasets,
-            new: new_datasets,
+            old: old_am_datasets,
+            new: new_am_datasets,
             diff: dataset_diff
         });
         core.endGroup();
@@ -655,6 +732,51 @@ async function run() {
     }
 }
 run();
+
+
+/***/ }),
+
+/***/ 918:
+/***/ ((__unused_webpack_module, exports) => {
+
+"use strict";
+
+Object.defineProperty(exports, "__esModule", ({ value: true }));
+exports.intersection = exports.difference = void 0;
+function toSet(fnList) {
+    const ret = new Set();
+    for (const fn of fnList) {
+        ret.add(JSON.stringify(fn));
+    }
+    return ret;
+}
+// Returns what's in A but not in B
+function difference(listA, listB) {
+    const setA = toSet(listA);
+    const setB = toSet(listB);
+    const _difference = new Set(setA);
+    for (const elem of setB) {
+        _difference.delete(elem);
+    }
+    const ret = [];
+    for (const fn of _difference.values()) {
+        ret.push(JSON.parse(fn));
+    }
+    return ret;
+}
+exports.difference = difference;
+// Returns what's in A and in B
+function intersection(listA, listB) {
+    const setA = toSet(listA);
+    const setB = toSet(listB);
+    const intersect = new Set([...setA].filter(fn => setB.has(fn)));
+    const ret = [];
+    for (const fn of intersect.values()) {
+        ret.push(JSON.parse(fn));
+    }
+    return ret;
+}
+exports.intersection = intersection;
 
 
 /***/ }),

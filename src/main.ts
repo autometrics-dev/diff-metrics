@@ -31,21 +31,21 @@ async function run(): Promise<void> {
     core.endGroup()
 
     core.startGroup('[head] Building datasets for head branch')
-    const new_datasets: DataSetMap = {}
+    const new_am_datasets: DataSetMap = {}
 
     // eslint-disable-next-line @typescript-eslint/no-unused-vars
     for (const ts_root of ts_roots) {
       core.warning('Typescript is not supported by am_list yet.')
     }
     for (const rs_root of rs_roots) {
-      new_datasets[rs_root] = await computeDataSet(am_path, rs_root, 'rust')
+      new_am_datasets[rs_root] = await computeDataSet(am_path, rs_root, 'rust')
     }
 
     const headSha = payload.pull_request?.head.sha ?? payload.after
-    core.info(JSON.stringify(new_datasets, undefined, 2))
+    core.info(JSON.stringify(new_am_datasets, undefined, 2))
     await storeDataSetMap(
       `autometrics-after-${headSha}`,
-      new_datasets,
+      new_am_datasets,
       retention
     )
     core.endGroup()
@@ -54,26 +54,26 @@ async function run(): Promise<void> {
     const baseSha = await checkoutBaseState(payload)
 
     core.startGroup('[base] Building datasets for base state')
-    const old_datasets: DataSetMap = {}
+    const old_am_datasets: DataSetMap = {}
 
     // eslint-disable-next-line @typescript-eslint/no-unused-vars
     for (const ts_root of ts_roots) {
       core.warning('Typescript is not supported by am_list yet.')
     }
     for (const rs_root of rs_roots) {
-      old_datasets[rs_root] = await computeDataSet(am_path, rs_root, 'rust')
+      old_am_datasets[rs_root] = await computeDataSet(am_path, rs_root, 'rust')
     }
 
-    core.info(JSON.stringify(old_datasets, undefined, 2))
+    core.info(JSON.stringify(old_am_datasets, undefined, 2))
     await storeDataSetMap(
       `autometrics-before-${baseSha}`,
-      old_datasets,
+      old_am_datasets,
       retention
     )
     core.endGroup()
 
     core.startGroup('Computing and saving the difference between the datasets')
-    const dataset_diff = diffDatasetMaps(new_datasets, old_datasets)
+    const dataset_diff = diffDatasetMaps(new_am_datasets, old_am_datasets)
     core.info(JSON.stringify(dataset_diff, undefined, 2))
     await storeDataSetDiffMap(
       `autometrics-diff-${baseSha}-${headSha}`,
@@ -90,8 +90,8 @@ async function run(): Promise<void> {
     core.startGroup(`Post comment on PR ${issueRef}`)
 
     await updateOrPostComment(octokit, github.context, {
-      old: old_datasets,
-      new: new_datasets,
+      old: old_am_datasets,
+      new: new_am_datasets,
       diff: dataset_diff
     })
 
