@@ -8,7 +8,8 @@ import {AmFunction, DataSet, DataSetMap} from './am_list'
 import {Context} from '@actions/github/lib/context'
 import {formatRatioAsPercentage} from './utils'
 
-const COMMENT_HEADER = '# <i>Autometrics Metrics Report</i>'
+const LOGO_URL = 'https://explorer.autometrics.dev/favicon.raw.19b993d4.svg'
+const COMMENT_HEADER = `# ![Autometrics logo](${LOGO_URL}) <i>Autometrics Metrics Report</i>`
 const COMMENT_FOOTER =
   '\n\n<a href="https://github.com/autometrics-dev/diff-metrics"><sub>Autometrics diff-metrics</sub></a>'
 
