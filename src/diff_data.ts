@@ -17,6 +17,12 @@ export type DataSetDiffMap = {
   [root: string]: DataSetDiff
 }
 
+export type DiffStats = {
+  old: DataSetMap
+  new: DataSetMap
+  diff: DataSetDiffMap
+}
+
 export function diffDatasetMaps(
   headMap: DataSetMap,
   baseMap: DataSetMap
