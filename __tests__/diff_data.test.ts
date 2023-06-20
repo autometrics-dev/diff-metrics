@@ -6,7 +6,6 @@ import {
   DataSetDiffMap,
   diffDatasetMaps
 } from '../src/diff_data'
-import {existsSync} from 'fs'
 
 test('computes the differences between datasets with base empty', async () => {
   const head_set: DataSet = {

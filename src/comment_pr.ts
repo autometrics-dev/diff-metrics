@@ -3,19 +3,14 @@
 
 import * as core from '@actions/core'
 import {GitHub} from '@actions/github/lib/utils'
-import {DataSetDiff, DataSetDiffMap} from './diff_data'
+import {DataSetDiff, DataSetDiffMap, DiffStats} from './diff_data'
 import {AmFunction, DataSet, DataSetMap} from './am_list'
 import {Context} from '@actions/github/lib/context'
+import {formatRatioAsPercentage} from './utils'
 
-const COMMENT_HEADER = '# <i>Autometrics Compare Metrics</i>'
+const COMMENT_HEADER = '# <i>Autometrics Metrics Report</i>'
 const COMMENT_FOOTER =
   '\n\n<a href="https://github.com/autometrics-dev/diff-metrics"><sub>Autometrics diff-metrics</sub></a>'
-
-export type DiffStats = {
-  old: DataSetMap
-  new: DataSetMap
-  diff: DataSetDiffMap
-}
 
 export async function updateOrPostComment(
   octokit: InstanceType<typeof GitHub>,
@@ -110,13 +105,18 @@ function formatComment(stats: DiffStats, repoName: string): string {
 
   return (
     `${header}\n` +
-    `## Differences in Datasets\n${formatDiffMap(stats.diff, repoName)}\n` +
+    `## Metrics changes\n${formatDiffMap(
+      stats.diff,
+      stats.old,
+      stats.new,
+      repoName
+    )}\n` +
     '## Details\n' +
-    `<details><summary>Old Dataset</summary>\n${formatDatasetMap(
+    `<details><summary>Metrics in base (old) branch</summary>\n${formatDatasetMap(
       stats.old,
       repoName
     )}</details>\n` +
-    `<details><summary>New Dataset</summary>\n${formatDatasetMap(
+    `<details><summary>Metrics in head (new) branch</summary>\n${formatDatasetMap(
       stats.new,
       repoName
     )}</details>\n` +
@@ -147,7 +147,7 @@ function formatSummary(
         datasetDiff.existingNoLongerAutometricized.length === 0
     )
   ) {
-    return 'No change\n'
+    return '👌 No change\n'
   }
 
   let amAdditions = 0
@@ -167,112 +167,162 @@ function formatSummary(
     deletions += diffItem.deletedFunctions.length
 
     oldTotalFns +=
-      oldData[key].autometricizedFunctions.length ??
-      0 + oldData[key].autometricizedFunctions.length ??
-      0
+      (oldData[key].autometricizedFunctions.length ?? 0) +
+      (oldData[key].otherFunctions.length ?? 0)
     oldTotalAmFns += oldData[key].autometricizedFunctions.length ?? 0
     newTotalFns +=
-      newData[key].autometricizedFunctions.length ??
-      0 + newData[key].autometricizedFunctions.length ??
-      0
+      (newData[key].autometricizedFunctions.length ?? 0) +
+      (newData[key].otherFunctions.length ?? 0)
     newTotalAmFns += newData[key].autometricizedFunctions.length ?? 0
   }
 
-  let summaryText = ''
+  let summaryText = 'Summary\n'
 
   if (amAdditions >= amRemovals) {
-    summaryText = `${summaryText}${
+    summaryText = `${summaryText}  - 🟢 ${
       amAdditions - amRemovals
     } metrics added (+${amAdditions} / -${amRemovals})\n`
   } else {
-    summaryText = `${summaryText}${
+    summaryText = `${summaryText}  - 🔴 ${
       amRemovals - amAdditions
     } metrics removed (+${amAdditions} / -${amRemovals})\n`
   }
 
   if (deletions !== 0) {
-    summaryText = `${summaryText}${deletions} functions deleted\n`
+    summaryText = `${summaryText}  - 🧹 ${deletions} functions deleted\n`
   }
 
   if (notAmAdditions !== 0) {
-    summaryText = `${summaryText}${notAmAdditions} new functions do _not_ have metrics.\n`
+    summaryText = `${summaryText}  - ⚠️ ${notAmAdditions} new functions do _not_ have metrics.\n`
   }
 
   if (newTotalFns !== 0 && oldTotalFns !== 0) {
     const newCov = newTotalAmFns / newTotalFns
     const oldCov = oldTotalAmFns / oldTotalFns
-    summaryText = `${summaryText}${
-      100.0 * (newCov - oldCov)
-    }% change in metrics coverage.\n`
+    const symbol = newCov >= oldCov ? '📈' : '📉'
+    summaryText = `${summaryText}  - ${symbol} ${formatRatioAsPercentage(
+      newCov - oldCov,
+      true
+    )}% change in metrics coverage (From \`${formatRatioAsPercentage(
+      oldCov
+    )}\` to \`${formatRatioAsPercentage(newCov)}\`).\n`
   } else if (newTotalFns === 0) {
-    summaryText = `${summaryText}Removing all functions.\n`
+    summaryText = `${summaryText}  - 🧹 Removing all functions.\n`
   } else if (oldTotalFns === 0) {
     const newCov = newTotalAmFns / newTotalFns
-    summaryText = `${summaryText}${
-      100.0 * newCov
-    }% change in metrics coverage.\n`
+    summaryText = `${summaryText}  - 💫 New metrics coverage: ${formatRatioAsPercentage(
+      newCov,
+      true
+    )}%.\n`
   }
 
   return summaryText
 }
 
-function formatDiffMap(diff: DataSetDiffMap, repoName: string): string {
+function formatDiffMap(
+  diff: DataSetDiffMap,
+  oldData: DataSetMap,
+  newData: DataSetMap,
+  repoName: string
+): string {
   if (Object.entries(diff).length === 0) {
-    return 'No data to report\n'
+    return '👌 No data to report\n'
   }
   let ret = ''
-  for (const [root, diffItem] of Object.entries(diff)) {
-    ret = `${ret}In \`${formatRoot(root, repoName)}\`\n\n`
-    ret = `${ret}${formatDiffSummary(diffItem)}\n\n`
+  for (const [root, diffItem] of Object.entries(diff).sort(([rootA], [rootB]) =>
+    rootA < rootB ? -1 : 1
+  )) {
+    ret = `${ret}### In \`${formatRoot(root, repoName)}\`\n\n`
+    ret = `${ret}${formatDiffSummary(
+      diffItem,
+      oldData[root] ?? {autometricizedFunctions: [], otherFunctions: []},
+      newData[root] ?? {autometricizedFunctions: [], otherFunctions: []}
+    )}\n\n`
     ret = `${ret}${formatDiffTable(diffItem)}\n\n`
   }
 
   return ret
 }
 
-function formatDiffSummary(diff: DataSetDiff): string {
+function formatDiffSummary(
+  diff: DataSetDiff,
+  oldData: DataSet,
+  newData: DataSet
+): string {
   const newFnCoverage =
     diff.newFunctionsAutometricized.length /
     (diff.newFunctionsAutometricized.length + diff.newFunctionsNotAm.length)
   const diffCoverageMessage = diff.coverageRatioDiff
-    ? `${100.0 * diff.coverageRatioDiff ?? 1}% change in metrics coverage.`
+    ? `- ${formatRatioAsPercentage(
+        diff.coverageRatioDiff ?? 1,
+        true
+      )}% change in metrics coverage \n  + From \`${
+        oldData.autometricizedFunctions.length
+      } / ${
+        oldData.otherFunctions.length + oldData.autometricizedFunctions.length
+      }\` functions with metrics to \`${
+        newData.autometricizedFunctions.length
+      } / ${
+        newData.autometricizedFunctions.length + newData.otherFunctions.length
+      }\`.\n`
     : ''
   if (isNaN(newFnCoverage)) {
     return diffCoverageMessage
   }
-  return `${diffCoverageMessage} (${
-    100.0 * newFnCoverage
-  }% of new functions have metrics).`
+  return `${diffCoverageMessage}- ${formatRatioAsPercentage(
+    newFnCoverage
+  )}% of new functions have metrics.`
 }
 
 function formatDiffTable(diff: DataSetDiff): string {
   let ret = ''
-  if (diff.existingNewlyAutometricized.length !== 0) {
-    ret = `${ret} ![Green square](https://placehold.co/15x15/c5f015/c5f015.png) Existing functions that get metrics now\n\n`
-    ret = ret + tableAmFunctionList(diff.existingNewlyAutometricized)
-  } else {
-    ret = `${ret}No existing function should start reporting metrics.\n\n`
+
+  // Skip the "existing functions" section if there's no autometrics related changes in the PR for existing functions.
+  if (
+    diff.existingNewlyAutometricized.length !== 0 ||
+    diff.existingNoLongerAutometricized.length !== 0
+  ) {
+    ret = `${ret}### Existing functions\n`
+    if (diff.existingNewlyAutometricized.length !== 0) {
+      ret = `${ret}📊 Existing functions that get metrics now\n\n`
+      ret = ret + tableAmFunctionList(diff.existingNewlyAutometricized)
+    } else {
+      ret = `${ret}⚠️ No existing function should start reporting metrics.\n\n`
+    }
+
+    ret = `${ret}---\n\n`
+
+    if (diff.existingNoLongerAutometricized.length !== 0) {
+      ret = `${ret}🔇 Existing functions that do not get metrics anymore\n\n`
+      ret = ret + tableAmFunctionList(diff.existingNoLongerAutometricized)
+    } else {
+      ret = `${ret}💫 No existing function should stop reporting metrics.\n\n`
+    }
+
+    ret = `${ret}---\n\n`
   }
 
-  if (diff.existingNoLongerAutometricized.length !== 0) {
-    ret = `${ret} ![Red square](https://placehold.co/15x15/f03c15/f03c15.png) Existing functions that do not get metrics anymore\n\n`
-    ret = ret + tableAmFunctionList(diff.existingNoLongerAutometricized)
-  } else {
-    ret = `${ret}No existing function should stop reporting metrics.\n\n`
-  }
+  // Skip the "added functions" section if there's no autometrics related changes in the PR for newly added functions.
+  if (
+    diff.newFunctionsAutometricized.length !== 0 ||
+    diff.newFunctionsNotAm.length !== 0
+  ) {
+    ret = `${ret}### Added functions\n`
+    if (diff.newFunctionsAutometricized.length !== 0) {
+      ret = `${ret}📊 <i>New</i> functions that get metrics\n\n`
+      ret = ret + tableAmFunctionList(diff.newFunctionsAutometricized)
+    } else if (diff.newFunctionsNotAm.length !== 0) {
+      ret = `${ret}⚠️ No new function has metrics.\n\n`
+    }
 
-  if (diff.newFunctionsAutometricized.length !== 0) {
-    ret = `${ret} ![Green square](https://placehold.co/15x15/c5f015/c5f015.png) New functions that get metrics\n\n`
-    ret = ret + tableAmFunctionList(diff.newFunctionsAutometricized)
-  } else if (diff.newFunctionsNotAm.length !== 0) {
-    ret = `${ret}No new function has metrics.\n\n`
-  }
+    ret = `${ret}---\n\n`
 
-  if (diff.newFunctionsNotAm.length !== 0) {
-    ret = `${ret} ![Red square](https://placehold.co/15x15/f03c15/f03c15.png) New functions that do not get metrics\n\n`
-    ret = ret + tableAmFunctionList(diff.existingNoLongerAutometricized)
-  } else if (diff.newFunctionsAutometricized.length !== 0) {
-    ret = `${ret}No new function is missing metrics!\n\n`
+    if (diff.newFunctionsNotAm.length !== 0) {
+      ret = `${ret}🔇 <i>New</i> functions that do not get metrics\n\n`
+      ret = ret + tableAmFunctionList(diff.existingNoLongerAutometricized)
+    } else if (diff.newFunctionsAutometricized.length !== 0) {
+      ret = `${ret}💫 No new function is missing metrics!\n\n`
+    }
   }
 
   return ret
@@ -280,10 +330,12 @@ function formatDiffTable(diff: DataSetDiff): string {
 
 function formatDatasetMap(statMap: DataSetMap, repoName: string): string {
   if (Object.entries(statMap).length === 0) {
-    return 'No data to report\n'
+    return '👌 No data to report\n'
   }
   let ret = ''
-  for (const [root, dataset] of Object.entries(statMap)) {
+  for (const [root, dataset] of Object.entries(statMap).sort(
+    ([rootA], [rootB]) => (rootA < rootB ? -1 : 1)
+  )) {
     ret = `${ret}In \`${formatRoot(root, repoName)}\`\n\n`
     ret = `${ret}${formatDataset(dataset)}\n\n`
   }
@@ -295,10 +347,10 @@ function formatDataset(dataset: DataSet): string {
   let ret = ''
 
   if (dataset.autometricizedFunctions.length !== 0) {
-    ret = `${ret}Annotated functions\n\n`
+    ret = `${ret}📊 <b>Autometricized functions</b>\n`
     ret = ret + tableAmFunctionList(dataset.autometricizedFunctions)
   } else {
-    ret = `${ret}No annotated function to report.\n\n`
+    ret = `${ret}⚠️ No annotated function to report.\n\n`
   }
 
   return ret
@@ -317,7 +369,7 @@ function tableAmFunctionList(
     for (const fn of list) {
       ret = `${ret}|${fn.module}|${fn.function}|\n`
     }
-    ret = `${ret}\n`
+    ret = `${ret}\n\n`
 
     return ret
   }
@@ -333,9 +385,11 @@ function tableAmFunctionList(
     perModuleFnList[fn.module].push(fn)
   }
 
-  for (const [moduleName, moduleList] of Object.entries(perModuleFnList)) {
-    ret = `${ret}Module ${moduleName}:\n`
-    ret = `${ret}${tableAmFunctionList(moduleList, true)}\n`
+  for (const [moduleName, moduleList] of Object.entries(perModuleFnList).sort(
+    ([rootA], [rootB]) => (rootA < rootB ? -1 : 1)
+  )) {
+    ret = `${ret}<details><summary>Module ${moduleName}</summary>\n`
+    ret = `${ret}${tableAmFunctionList(moduleList, true)}\n</details>\n`
   }
 
   return ret

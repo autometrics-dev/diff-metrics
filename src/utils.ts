@@ -40,3 +40,17 @@ export function intersection(
   }
   return ret
 }
+
+// Format a ratio between 0 and 1 to a percentage with 2 decimal digits. addSign can
+// force the '+' sign on positive values, helpful to format changes/deltas
+export function formatRatioAsPercentage(
+  num: number,
+  addSign?: boolean
+): string {
+  const perc = (100.0 * num).toFixed(2)
+  if (addSign && num > 0) {
+    return `+${perc.toString()}`
+  } else {
+    return perc.toString()
+  }
+}
