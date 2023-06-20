@@ -1,8 +1,6 @@
-# Autometrics Diff Metrics (alpha)
+# Autometrics Metrics Report
 
-> **Warning**
-> The action is not stable yet. You can try to use it and give feedback 
-if you wish, but there is no `@v1` version to use for now
+A Github action that comments on PRs to tell you how metrics are going to be affected
 
 <!-- Put a screen shot of the PR comment here. -->
 
