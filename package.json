@@ -1,6 +1,6 @@
 {
   "name": "diff-metrics",
-  "version": "1.0.0-dev",
+  "version": "1.0.0",
   "description": "",
   "main": "lib/main.js",
   "scripts": {
