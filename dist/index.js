@@ -212,7 +212,7 @@ Object.defineProperty(exports, "__esModule", ({ value: true }));
 exports.updateOrPostComment = void 0;
 const core = __importStar(__nccwpck_require__(2186));
 const utils_1 = __nccwpck_require__(918);
-const LOGO_URL = "https://explorer.autometrics.dev/favicon.raw.19b993d4.svg";
+const LOGO_URL = 'https://explorer.autometrics.dev/favicon.raw.19b993d4.svg';
 const COMMENT_HEADER = `# ![Autometrics logo](${LOGO_URL}) <i>Autometrics Metrics Report</i>`;
 const COMMENT_FOOTER = '\n\n<a href="https://github.com/autometrics-dev/diff-metrics"><sub>Autometrics diff-metrics</sub></a>';
 async function updateOrPostComment(octokit, context, stats) {
@@ -313,11 +313,12 @@ function formatSummary(diff, oldData, newData) {
             datasetDiff.newFunctionsAutometricized.length === 0 &&
             datasetDiff.newFunctionsNotAm.length === 0 &&
             datasetDiff.existingNoLongerAutometricized.length === 0)) {
-        return '👌 No change\n';
+        return 'No change\n';
     }
     let amAdditions = 0;
     let amRemovals = 0;
     let deletions = 0;
+    let newFnWithAm = 0;
     let notAmAdditions = 0;
     let oldTotalFns = 0;
     let oldTotalAmFns = 0;
@@ -328,6 +329,7 @@ function formatSummary(diff, oldData, newData) {
             diffItem.existingNewlyAutometricized.length +
                 diffItem.newFunctionsAutometricized.length;
         notAmAdditions += diffItem.newFunctionsNotAm.length;
+        newFnWithAm += diffItem.newFunctionsAutometricized.length;
         amRemovals += diffItem.existingNoLongerAutometricized.length;
         deletions += diffItem.deletedFunctions.length;
         oldTotalFns +=
@@ -341,22 +343,24 @@ function formatSummary(diff, oldData, newData) {
     }
     let summaryText = 'Summary\n';
     if (amAdditions >= amRemovals) {
-        summaryText = `${summaryText}  - 🟢 ${amAdditions - amRemovals} metrics added (+${amAdditions} / -${amRemovals})\n`;
+        summaryText = `${summaryText}  - ${amAdditions - amRemovals} metrics <b>added</b> (+${amAdditions} / -${amRemovals})\n`;
     }
     else {
-        summaryText = `${summaryText}  - 🔴 ${amRemovals - amAdditions} metrics removed (+${amAdditions} / -${amRemovals})\n`;
+        summaryText = `${summaryText}  - ${amRemovals - amAdditions} metrics <b>removed</b> (+${amAdditions} / -${amRemovals})\n`;
     }
     if (deletions !== 0) {
-        summaryText = `${summaryText}  - 🧹 ${deletions} functions deleted\n`;
+        summaryText = `${summaryText}  - ${deletions} functions deleted\n`;
+    }
+    if (!isNaN(newFnWithAm / notAmAdditions)) {
+        summaryText = `${summaryText}  - ${(0, utils_1.formatRatioAsPercentage)(newFnWithAm / (newFnWithAm + notAmAdditions))}% of new functions have metrics.\n`;
     }
     if (notAmAdditions !== 0) {
-        summaryText = `${summaryText}  - ⚠️ ${notAmAdditions} new functions do _not_ have metrics.\n`;
+        summaryText = `${summaryText}  - ${notAmAdditions} new functions do _not_ have metrics.\n`;
     }
     if (newTotalFns !== 0 && oldTotalFns !== 0) {
         const newCov = newTotalAmFns / newTotalFns;
         const oldCov = oldTotalAmFns / oldTotalFns;
-        const symbol = newCov >= oldCov ? '📈' : '📉';
-        summaryText = `${summaryText}  - ${symbol} ${(0, utils_1.formatRatioAsPercentage)(newCov - oldCov, true)}% change in metrics coverage (From \`${(0, utils_1.formatRatioAsPercentage)(oldCov)}\` to \`${(0, utils_1.formatRatioAsPercentage)(newCov)}\`).\n`;
+        summaryText = `${summaryText}  - ${(0, utils_1.formatRatioAsPercentage)(newCov - oldCov, true)}% change in metrics coverage (From \`${(0, utils_1.formatRatioAsPercentage)(oldCov)}\` to \`${(0, utils_1.formatRatioAsPercentage)(newCov)}\`).\n`;
     }
     else if (newTotalFns === 0) {
         summaryText = `${summaryText}  - 🧹 Removing all functions.\n`;

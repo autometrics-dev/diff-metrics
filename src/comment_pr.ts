@@ -148,12 +148,13 @@ function formatSummary(
         datasetDiff.existingNoLongerAutometricized.length === 0
     )
   ) {
-    return '👌 No change\n'
+    return 'No change\n'
   }
 
   let amAdditions = 0
   let amRemovals = 0
   let deletions = 0
+  let newFnWithAm = 0
   let notAmAdditions = 0
   let oldTotalFns = 0
   let oldTotalAmFns = 0
@@ -164,6 +165,7 @@ function formatSummary(
       diffItem.existingNewlyAutometricized.length +
       diffItem.newFunctionsAutometricized.length
     notAmAdditions += diffItem.newFunctionsNotAm.length
+    newFnWithAm += diffItem.newFunctionsAutometricized.length
     amRemovals += diffItem.existingNoLongerAutometricized.length
     deletions += diffItem.deletedFunctions.length
 
@@ -180,28 +182,32 @@ function formatSummary(
   let summaryText = 'Summary\n'
 
   if (amAdditions >= amRemovals) {
-    summaryText = `${summaryText}  - 🟢 ${
+    summaryText = `${summaryText}  - ${
       amAdditions - amRemovals
-    } metrics added (+${amAdditions} / -${amRemovals})\n`
+    } metrics <b>added</b> (+${amAdditions} / -${amRemovals})\n`
   } else {
-    summaryText = `${summaryText}  - 🔴 ${
+    summaryText = `${summaryText}  - ${
       amRemovals - amAdditions
-    } metrics removed (+${amAdditions} / -${amRemovals})\n`
+    } metrics <b>removed</b> (+${amAdditions} / -${amRemovals})\n`
   }
 
   if (deletions !== 0) {
-    summaryText = `${summaryText}  - 🧹 ${deletions} functions deleted\n`
+    summaryText = `${summaryText}  - ${deletions} functions deleted\n`
   }
 
+  if (!isNaN(newFnWithAm / notAmAdditions)) {
+    summaryText = `${summaryText}  - ${formatRatioAsPercentage(
+      newFnWithAm / (newFnWithAm + notAmAdditions)
+    )}% of new functions have metrics.\n`
+  }
   if (notAmAdditions !== 0) {
-    summaryText = `${summaryText}  - ⚠️ ${notAmAdditions} new functions do _not_ have metrics.\n`
+    summaryText = `${summaryText}  - ${notAmAdditions} new functions do _not_ have metrics.\n`
   }
 
   if (newTotalFns !== 0 && oldTotalFns !== 0) {
     const newCov = newTotalAmFns / newTotalFns
     const oldCov = oldTotalAmFns / oldTotalFns
-    const symbol = newCov >= oldCov ? '📈' : '📉'
-    summaryText = `${summaryText}  - ${symbol} ${formatRatioAsPercentage(
+    summaryText = `${summaryText}  - ${formatRatioAsPercentage(
       newCov - oldCov,
       true
     )}% change in metrics coverage (From \`${formatRatioAsPercentage(
