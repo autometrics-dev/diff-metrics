@@ -212,7 +212,8 @@ Object.defineProperty(exports, "__esModule", ({ value: true }));
 exports.updateOrPostComment = void 0;
 const core = __importStar(__nccwpck_require__(2186));
 const utils_1 = __nccwpck_require__(918);
-const COMMENT_HEADER = '# <i>Autometrics Metrics Report</i>';
+const LOGO_URL = "https://explorer.autometrics.dev/favicon.raw.19b993d4.svg";
+const COMMENT_HEADER = `# ![Autometrics logo](${LOGO_URL}) <i>Autometrics Metrics Report</i>`;
 const COMMENT_FOOTER = '\n\n<a href="https://github.com/autometrics-dev/diff-metrics"><sub>Autometrics diff-metrics</sub></a>';
 async function updateOrPostComment(octokit, context, stats) {
     var _a, _b, _c;
