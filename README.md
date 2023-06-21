@@ -1,6 +1,6 @@
 # Autometrics Report
 
-This Github action will comment on Pull Requests to tell you how metrics are
+This GitHub action will comment on Pull Requests to tell you how metrics are
 going to be affected.
 
 The report tells you immediately if your new feature is well instrumented, and
