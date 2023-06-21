@@ -1,4 +1,4 @@
-name: 'Autometrics'
+name: 'Autometrics Report'
 description: 'Get a report in autometrics coverage of functions in Pull Requests.'
 author: 'Autometrics-dev'
 branding:
