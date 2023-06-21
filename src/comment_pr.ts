@@ -9,7 +9,7 @@ import {Context} from '@actions/github/lib/context'
 import {formatRatioAsPercentage} from './utils'
 
 const LOGO_URL = 'https://explorer.autometrics.dev/favicon.raw.19b993d4.svg'
-const COMMENT_HEADER = `# ![Autometrics logo](${LOGO_URL}) <i>Autometrics Metrics Report</i>`
+const COMMENT_HEADER = `# ![Autometrics logo](${LOGO_URL}) Autometrics Report`
 const COMMENT_FOOTER =
   '\n\n<a href="https://github.com/autometrics-dev/diff-metrics"><sub>Autometrics diff-metrics</sub></a>'
 
@@ -179,7 +179,7 @@ function formatSummary(
     newTotalAmFns += newData[key].autometricizedFunctions.length ?? 0
   }
 
-  let summaryText = 'Summary\n'
+  let summaryText = ''
 
   if (amAdditions >= amRemovals) {
     summaryText = `${summaryText}  - ${
@@ -293,8 +293,6 @@ function formatDiffTable(diff: DataSetDiff): string {
     if (diff.existingNewlyAutometricized.length !== 0) {
       ret = `${ret}📊 Existing functions that get metrics now\n\n`
       ret = ret + tableAmFunctionList(diff.existingNewlyAutometricized)
-    } else {
-      ret = `${ret}⚠️ No existing function should start reporting metrics.\n\n`
     }
 
     ret = `${ret}---\n\n`
@@ -302,8 +300,6 @@ function formatDiffTable(diff: DataSetDiff): string {
     if (diff.existingNoLongerAutometricized.length !== 0) {
       ret = `${ret}🔇 Existing functions that do not get metrics anymore\n\n`
       ret = ret + tableAmFunctionList(diff.existingNoLongerAutometricized)
-    } else {
-      ret = `${ret}💫 No existing function should stop reporting metrics.\n\n`
     }
 
     ret = `${ret}---\n\n`
@@ -328,7 +324,7 @@ function formatDiffTable(diff: DataSetDiff): string {
       ret = `${ret}🔇 <i>New</i> functions that do not get metrics\n\n`
       ret = ret + tableAmFunctionList(diff.existingNoLongerAutometricized)
     } else if (diff.newFunctionsAutometricized.length !== 0) {
-      ret = `${ret}💫 No new function is missing metrics!\n\n`
+      ret = `${ret}💫 All new functions in the Pull Request have metrics!\n\n`
     }
   }
 
@@ -337,7 +333,7 @@ function formatDiffTable(diff: DataSetDiff): string {
 
 function formatDatasetMap(statMap: DataSetMap, repoName: string): string {
   if (Object.entries(statMap).length === 0) {
-    return '👌 No data to report\n'
+    return 'No data to report\n'
   }
   let ret = ''
   for (const [root, dataset] of Object.entries(statMap).sort(
@@ -356,8 +352,6 @@ function formatDataset(dataset: DataSet): string {
   if (dataset.autometricizedFunctions.length !== 0) {
     ret = `${ret}📊 <b>Autometricized functions</b>\n`
     ret = ret + tableAmFunctionList(dataset.autometricizedFunctions)
-  } else {
-    ret = `${ret}⚠️ No annotated function to report.\n\n`
   }
 
   return ret
