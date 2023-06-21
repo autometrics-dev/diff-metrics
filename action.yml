@@ -1,6 +1,6 @@
-name: 'Autometrics Diff Metrics'
-description: 'Check the difference in autometrics coverage between the source and the target of a Pull Request.'
-author: 'autometrics-dev'
+name: 'Autometrics'
+description: 'Get a report in autometrics coverage of functions in Pull Requests.'
+author: 'Autometrics-dev'
 branding:
   icon: 'bar-chart'
   color: 'purple'
