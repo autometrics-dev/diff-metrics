@@ -1,10 +1,13 @@
-# Autometrics Metrics Report
+# Autometrics Report
 
-A Github action that comments on PRs to tell you how metrics are going to be affected. The
-report tells you immediately if your new feature is well instrumented, and shows a useful
-summary of the metrics that will be reported without needing to go through the diff.
+This Github action will comment on Pull Requests to tell you how metrics are
+going to be affected.
 
-<!-- Put a screen shot of the PR comment here. -->
+The report tells you immediately if your new feature is well instrumented, and
+shows a useful summary of the metrics that will be reported without needing to
+go through the diff.
+
+![An example of generated report on Github](./assets/comment_preview.png)
 
 ## Inputs
 
@@ -12,6 +15,7 @@ summary of the metrics that will be reported without needing to go through the d
   + the PR
   + the repo
   + read/write access to comments on issues/PR
+
   **The built-in `${{ secrets.GITHUB_TOKEN }}` will work, you do not need to create a new one.**
   To make the built-in token work, the job must be given a specific set of permissions. The permissions added in the
   ["Example Usage" section](#example-usage) show the minimal set of permissions needed.
@@ -116,7 +120,7 @@ Look at the issues in the repository to see the advancement of language support.
 All languages in the table will be eventually supported.
 
 Language | Support 
-:---:|:---:|:---:
+:---:|:---:
 [Rust](https://github.com/autometrics-dev/autometrics-rs) | ✅ 
 [Typescript](https://github.com/autometrics-dev/autometrics-ts) | ❌
 [Go](https://github.com/autometrics-dev/autometrics-go) | ❌
