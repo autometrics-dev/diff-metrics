@@ -1,6 +1,6 @@
 {
-  "name": "@autometrics/diff-metrics",
-  "version": "1.0.1",
+  "name": "@autometrics-dev/diff-metrics",
+  "version": "1.0.2",
   "description": "",
   "main": "lib/main.js",
   "scripts": {
