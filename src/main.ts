@@ -33,9 +33,8 @@ async function run(): Promise<void> {
     core.startGroup('[head] Building datasets for head branch')
     const newAmDatasets: DataSetMap = {}
 
-    // eslint-disable-next-line @typescript-eslint/no-unused-vars
     for (const tsRoot of tsRoots) {
-      core.warning('Typescript is not supported by am_list yet.')
+      newAmDatasets[tsRoot] = await computeDataSet(amPath, tsRoot, 'typescript')
     }
     for (const rsRoot of rsRoots) {
       newAmDatasets[rsRoot] = await computeDataSet(amPath, rsRoot, 'rust')
@@ -56,9 +55,8 @@ async function run(): Promise<void> {
     core.startGroup('[base] Building datasets for base state')
     const oldAmDatasets: DataSetMap = {}
 
-    // eslint-disable-next-line @typescript-eslint/no-unused-vars
     for (const tsRoot of tsRoots) {
-      core.warning('Typescript is not supported by am_list yet.')
+      oldAmDatasets[tsRoot] = await computeDataSet(amPath, tsRoot, 'typescript')
     }
     for (const rsRoot of rsRoots) {
       oldAmDatasets[rsRoot] = await computeDataSet(amPath, rsRoot, 'rust')
