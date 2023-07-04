@@ -21,7 +21,10 @@ go through the diff.
   ["Example Usage" section](#example-usage) show the minimal set of permissions needed.
 - `rs-roots`: a list of project roots for rust projects, one root per line.
   The values are given relative to the root of the repository, and should
-  point to the directory containing the `Cargo.toml` directory.
+  point to the directory containing the `Cargo.toml` file.
+- `ts-roots`: a list of project roots for typescript projects, one root per line.
+  The values are given relative to the root of the repository, and should
+  point to the directory containing the `package.json` file.
 - `retention-days`: the number of days to keep the list of functions as
   [workflow
   artifacts](https://docs.github.com/en/actions/using-workflows/storing-workflow-data-as-artifacts#about-workflow-artifacts).
@@ -37,6 +40,7 @@ go through the diff.
 :----------:|:-----------:
 gh-token | yes 
 rs-roots | no 
+ts-roots | no 
 retention-days | no
 am-version | no
 
@@ -99,6 +103,10 @@ In the case of a mono repo that would look like
 │  ├── README.md
 │  │ ...
 │  └── Cargo.toml
+├── project-ts
+│  ├── README.md
+│  │ ...
+│  └── package.json
 └── README.md
 ```
 
@@ -111,6 +119,8 @@ with:
     project-a
     project-b
     project-c
+  ts-roots: |
+    project-ts
 ```
 
 
@@ -122,7 +132,7 @@ All languages in the table will be eventually supported.
 Language | Support 
 :---:|:---:
 [Rust](https://github.com/autometrics-dev/autometrics-rs) | ✅ 
-[Typescript](https://github.com/autometrics-dev/autometrics-ts) | ❌
+[Typescript](https://github.com/autometrics-dev/autometrics-ts) | ✅
 [Go](https://github.com/autometrics-dev/autometrics-go) | ❌
 [Python](https://github.com/autometrics-dev/autometrics-py) | ❌
 [C#](https://github.com/autometrics-dev/autometrics-cs) | ❌
