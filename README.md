@@ -25,6 +25,9 @@ go through the diff.
 - `ts-roots`: a list of project roots for typescript projects, one root per line.
   The values are given relative to the root of the repository, and should
   point to the directory containing the `package.json` file.
+- `go-roots`: a list of project roots for golang projects, one root per line.
+  The values are given relative to the root of the repository, and should
+  point to the directory containing the `go.mod` file.
 - `retention-days`: the number of days to keep the list of functions as
   [workflow
   artifacts](https://docs.github.com/en/actions/using-workflows/storing-workflow-data-as-artifacts#about-workflow-artifacts).
@@ -41,6 +44,7 @@ go through the diff.
 gh-token | yes 
 rs-roots | no 
 ts-roots | no 
+go-roots | no 
 retention-days | no
 am-version | no
 
@@ -103,6 +107,10 @@ In the case of a mono repo that would look like
 │  ├── README.md
 │  │ ...
 │  └── Cargo.toml
+├── project-d
+│  ├── README.md
+│  │ ...
+│  └── go.mod
 ├── project-ts
 │  ├── README.md
 │  │ ...
@@ -119,6 +127,8 @@ with:
     project-a
     project-b
     project-c
+  go-roots: |
+    project-d
   ts-roots: |
     project-ts
 ```
@@ -133,6 +143,10 @@ Language | Support
 :---:|:---:
 [Rust](https://github.com/autometrics-dev/autometrics-rs) | ✅ 
 [Typescript](https://github.com/autometrics-dev/autometrics-ts) | ✅
-[Go](https://github.com/autometrics-dev/autometrics-go) | ❌
+[Go](https://github.com/autometrics-dev/autometrics-go) | ⚠️[^mid]
 [Python](https://github.com/autometrics-dev/autometrics-py) | ❌
 [C#](https://github.com/autometrics-dev/autometrics-cs) | ❌
+
+
+[^mid]: Golang's version detects functions decorated with `//autometrics` directives, but
+    does not deal with `net/http` middleware wrapper yet.
