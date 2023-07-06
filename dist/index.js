@@ -677,6 +677,7 @@ const gitops_1 = __nccwpck_require__(8148);
 const TOKEN = 'gh-token';
 const TS_ROOTS = 'ts-roots';
 const RS_ROOTS = 'rust-roots';
+const GO_ROOTS = 'go-roots';
 const RETENTION = 'retention-days';
 const AM_VERSION = 'am-version';
 async function run() {
@@ -689,6 +690,7 @@ async function run() {
         });
         const tsRoots = core.getMultilineInput(TS_ROOTS);
         const rsRoots = core.getMultilineInput(RS_ROOTS);
+        const goRoots = core.getMultilineInput(GO_ROOTS);
         const retention = parseInt(core.getInput(RETENTION));
         const amVersion = core.getInput(AM_VERSION) !== '' ? core.getInput(AM_VERSION) : undefined;
         core.startGroup(`Downloading am_list matching ${amVersion !== null && amVersion !== void 0 ? amVersion : 'latest'}`);
@@ -696,6 +698,9 @@ async function run() {
         core.endGroup();
         core.startGroup('[head] Building datasets for head branch');
         const newAmDatasets = {};
+        for (const goRoot of goRoots) {
+            newAmDatasets[goRoot] = await (0, am_list_1.computeDataSet)(amPath, goRoot, 'go');
+        }
         for (const tsRoot of tsRoots) {
             newAmDatasets[tsRoot] = await (0, am_list_1.computeDataSet)(amPath, tsRoot, 'typescript');
         }
@@ -710,6 +715,9 @@ async function run() {
         const baseSha = await (0, gitops_1.checkoutBaseState)(payload);
         core.startGroup('[base] Building datasets for base state');
         const oldAmDatasets = {};
+        for (const goRoot of goRoots) {
+            oldAmDatasets[goRoot] = await (0, am_list_1.computeDataSet)(amPath, goRoot, 'go');
+        }
         for (const tsRoot of tsRoots) {
             oldAmDatasets[tsRoot] = await (0, am_list_1.computeDataSet)(amPath, tsRoot, 'typescript');
         }

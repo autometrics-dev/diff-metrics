@@ -9,6 +9,7 @@ import {checkoutBaseState} from './gitops'
 const TOKEN = 'gh-token'
 const TS_ROOTS = 'ts-roots'
 const RS_ROOTS = 'rust-roots'
+const GO_ROOTS = 'go-roots'
 const RETENTION = 'retention-days'
 const AM_VERSION = 'am-version'
 
@@ -22,6 +23,7 @@ async function run(): Promise<void> {
     })
     const tsRoots = core.getMultilineInput(TS_ROOTS)
     const rsRoots = core.getMultilineInput(RS_ROOTS)
+    const goRoots = core.getMultilineInput(GO_ROOTS)
     const retention = parseInt(core.getInput(RETENTION))
     const amVersion =
       core.getInput(AM_VERSION) !== '' ? core.getInput(AM_VERSION) : undefined
@@ -33,6 +35,9 @@ async function run(): Promise<void> {
     core.startGroup('[head] Building datasets for head branch')
     const newAmDatasets: DataSetMap = {}
 
+    for (const goRoot of goRoots) {
+      newAmDatasets[goRoot] = await computeDataSet(amPath, goRoot, 'go')
+    }
     for (const tsRoot of tsRoots) {
       newAmDatasets[tsRoot] = await computeDataSet(amPath, tsRoot, 'typescript')
     }
@@ -55,6 +60,9 @@ async function run(): Promise<void> {
     core.startGroup('[base] Building datasets for base state')
     const oldAmDatasets: DataSetMap = {}
 
+    for (const goRoot of goRoots) {
+      oldAmDatasets[goRoot] = await computeDataSet(amPath, goRoot, 'go')
+    }
     for (const tsRoot of tsRoots) {
       oldAmDatasets[tsRoot] = await computeDataSet(amPath, tsRoot, 'typescript')
     }
