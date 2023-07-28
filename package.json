@@ -22,7 +22,7 @@
     "@mapbox/node-pre-gyp": "^1.0.11",
     "@octokit/openapi-types": "^18.0.0",
     "decompress": "^4.2.1",
-    "semver": "^7.5.2",
+    "semver": "^7.5.4",
     "tmp": "^0.2.1"
   },
   "devDependencies": {
