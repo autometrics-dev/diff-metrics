@@ -8,8 +8,9 @@ import {checkoutBaseState} from './gitops'
 
 const TOKEN = 'gh-token'
 const TS_ROOTS = 'ts-roots'
-const RS_ROOTS = 'rust-roots'
+const RS_ROOTS = 'rs-roots'
 const GO_ROOTS = 'go-roots'
+const PY_ROOTS = 'py-roots'
 const RETENTION = 'retention-days'
 const AM_VERSION = 'am-version'
 
@@ -24,6 +25,7 @@ async function run(): Promise<void> {
     const tsRoots = core.getMultilineInput(TS_ROOTS)
     const rsRoots = core.getMultilineInput(RS_ROOTS)
     const goRoots = core.getMultilineInput(GO_ROOTS)
+    const pyRoots = core.getMultilineInput(PY_ROOTS)
     const retention = parseInt(core.getInput(RETENTION))
     const amVersion =
       core.getInput(AM_VERSION) !== '' ? core.getInput(AM_VERSION) : undefined
@@ -43,6 +45,9 @@ async function run(): Promise<void> {
     }
     for (const rsRoot of rsRoots) {
       newAmDatasets[rsRoot] = await computeDataSet(amPath, rsRoot, 'rust')
+    }
+    for (const pyRoot of pyRoots) {
+      newAmDatasets[pyRoot] = await computeDataSet(amPath, pyRoot, 'python')
     }
 
     const headSha = payload.pull_request?.head.sha ?? payload.after
@@ -68,6 +73,9 @@ async function run(): Promise<void> {
     }
     for (const rsRoot of rsRoots) {
       oldAmDatasets[rsRoot] = await computeDataSet(amPath, rsRoot, 'rust')
+    }
+    for (const pyRoot of pyRoots) {
+      oldAmDatasets[pyRoot] = await computeDataSet(amPath, pyRoot, 'python')
     }
 
     core.info(JSON.stringify(oldAmDatasets, undefined, 2))

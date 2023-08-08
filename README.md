@@ -12,13 +12,15 @@ go through the diff.
 ## Inputs
 
 - `gh-token`: a github token that gives access to
-  + the PR
-  + the repo
-  + read/write access to comments on issues/PR
+
+  - the PR
+  - the repo
+  - read/write access to comments on issues/PR
 
   **The built-in `${{ secrets.GITHUB_TOKEN }}` will work, you do not need to create a new one.**
   To make the built-in token work, the job must be given a specific set of permissions. The permissions added in the
   ["Example Usage" section](#example-usage) show the minimal set of permissions needed.
+
 - `rs-roots`: a list of project roots for rust projects, one root per line.
   The values are given relative to the root of the repository, and should
   point to the directory containing the `Cargo.toml` file.
@@ -28,6 +30,10 @@ go through the diff.
 - `go-roots`: a list of project roots for golang projects, one root per line.
   The values are given relative to the root of the repository, and should
   point to the directory containing the `go.mod` file.
+- `py-roots`: a list of project roots for python projects, one root per line.
+  The values are given relative to the root of the repository, and should
+  point to the directory containing the actual module source code. If you have a monorepo,
+  you need to specify the root of each submodule.
 - `retention-days`: the number of days to keep the list of functions as
   [workflow
   artifacts](https://docs.github.com/en/actions/using-workflows/storing-workflow-data-as-artifacts#about-workflow-artifacts).
@@ -38,24 +44,25 @@ go through the diff.
   tell the action to download the latest version that falls within the bound.
   Defaults to an empty string (`""`), which means "download the latest version,
   semver-wise"
-  
-| Argument | Mandatory
-:----------:|:-----------:
-gh-token | yes 
-rs-roots | no 
-ts-roots | no 
-go-roots | no 
-retention-days | no
-am-version | no
+
+|    Argument    | Mandatory |
+| :------------: | :-------: |
+|    gh-token    |    yes    |
+|    rs-roots    |    no     |
+|    ts-roots    |    no     |
+|    go-roots    |    no     |
+|    py-roots    |    no     |
+| retention-days |    no     |
+|   am-version   |    no     |
 
 ## Outputs
 
 The action does 2 things:
+
 - it writes comments to pull request giving the monitoring impact of the Pull Request.
 - it saves the data used to compute this report as workflow artifacts. Workflow artifacts
   stay private to the repository that created them, but this allows for further processing
   if need be.
-  
 
 ## Example Usage
 
@@ -69,7 +76,6 @@ on: [pull_request]
 
 jobs:
   build:
-
     # The task only runs on linux x64 machines.
     runs-on: ubuntu-latest
 
@@ -81,18 +87,18 @@ jobs:
       contents: read
 
     steps:
-    - uses: actions/checkout@v3
-    - uses: autometrics-dev/diff-metrics@v1
-      with:
-        gh-token: ${{ secrets.GITHUB_TOKEN }}
-        rust-roots: |
-          .
+      - uses: actions/checkout@v3
+      - uses: autometrics-dev/diff-metrics@v1
+        with:
+          gh-token: ${{ secrets.GITHUB_TOKEN }}
+          rs-roots: |
+            .
 ```
-
 
 ### Mono repo example
 
 In the case of a mono repo that would look like
+
 ```
 .
 ├── project-a
@@ -119,11 +125,12 @@ In the case of a mono repo that would look like
 ```
 
 The step using diff-metrics would look like this:
+
 ```yaml
 uses: autometrics-dev/diff-metrics@v1
 with:
   gh-token: ${{ secrets.GITHUB_TOKEN }}
-  rust-roots: |
+  rs-roots: |
     project-a
     project-b
     project-c
@@ -133,20 +140,19 @@ with:
     project-ts
 ```
 
-
 ###### Language support
 
 Look at the issues in the repository to see the advancement of language support.
 All languages in the table will be eventually supported.
 
-Language | Support 
-:---:|:---:
-[Rust](https://github.com/autometrics-dev/autometrics-rs) | ✅ 
-[Typescript](https://github.com/autometrics-dev/autometrics-ts) | ✅
-[Go](https://github.com/autometrics-dev/autometrics-go) | ⚠️[^mid]
-[Python](https://github.com/autometrics-dev/autometrics-py) | ❌
-[C#](https://github.com/autometrics-dev/autometrics-cs) | ❌
+|                            Language                             | Support  |
+| :-------------------------------------------------------------: | :------: |
+|    [Rust](https://github.com/autometrics-dev/autometrics-rs)    |    ✅    |
+| [Typescript](https://github.com/autometrics-dev/autometrics-ts) |    ✅    |
+|     [Go](https://github.com/autometrics-dev/autometrics-go)     | ⚠️[^mid] |
+|   [Python](https://github.com/autometrics-dev/autometrics-py)   |    ✅    |
+|     [C#](https://github.com/autometrics-dev/autometrics-cs)     |    ❌    |
 
-
-[^mid]: Golang's version detects functions decorated with `//autometrics` directives, but
+[^mid]:
+    Golang's version detects functions decorated with `//autometrics` directives, but
     does not deal with `net/http` middleware wrapper yet.
