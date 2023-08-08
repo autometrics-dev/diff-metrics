@@ -676,8 +676,9 @@ const artifact_1 = __nccwpck_require__(7917);
 const gitops_1 = __nccwpck_require__(8148);
 const TOKEN = 'gh-token';
 const TS_ROOTS = 'ts-roots';
-const RS_ROOTS = 'rust-roots';
+const RS_ROOTS = 'rs-roots';
 const GO_ROOTS = 'go-roots';
+const PY_ROOTS = 'py-roots';
 const RETENTION = 'retention-days';
 const AM_VERSION = 'am-version';
 async function run() {
@@ -691,6 +692,7 @@ async function run() {
         const tsRoots = core.getMultilineInput(TS_ROOTS);
         const rsRoots = core.getMultilineInput(RS_ROOTS);
         const goRoots = core.getMultilineInput(GO_ROOTS);
+        const pyRoots = core.getMultilineInput(PY_ROOTS);
         const retention = parseInt(core.getInput(RETENTION));
         const amVersion = core.getInput(AM_VERSION) !== '' ? core.getInput(AM_VERSION) : undefined;
         core.startGroup(`Downloading am_list matching ${amVersion !== null && amVersion !== void 0 ? amVersion : 'latest'}`);
@@ -706,6 +708,9 @@ async function run() {
         }
         for (const rsRoot of rsRoots) {
             newAmDatasets[rsRoot] = await (0, am_list_1.computeDataSet)(amPath, rsRoot, 'rust');
+        }
+        for (const pyRoot of pyRoots) {
+            newAmDatasets[pyRoot] = await (0, am_list_1.computeDataSet)(amPath, pyRoot, 'python');
         }
         const headSha = (_b = (_a = payload.pull_request) === null || _a === void 0 ? void 0 : _a.head.sha) !== null && _b !== void 0 ? _b : payload.after;
         core.info(JSON.stringify(newAmDatasets, undefined, 2));
@@ -723,6 +728,9 @@ async function run() {
         }
         for (const rsRoot of rsRoots) {
             oldAmDatasets[rsRoot] = await (0, am_list_1.computeDataSet)(amPath, rsRoot, 'rust');
+        }
+        for (const pyRoot of pyRoots) {
+            oldAmDatasets[pyRoot] = await (0, am_list_1.computeDataSet)(amPath, pyRoot, 'python');
         }
         core.info(JSON.stringify(oldAmDatasets, undefined, 2));
         await (0, artifact_1.storeDataSetMap)(`autometrics-before-${baseSha}`, oldAmDatasets, retention);

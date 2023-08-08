@@ -8,7 +8,7 @@ inputs:
   gh-token:
     description: 'Github token to use'
     required: true
-  rust-roots:
+  rs-roots:
     description: 'The list of rust project roots to check. One path per line'
     required: false
   ts-roots:
@@ -16,6 +16,9 @@ inputs:
     required: false
   go-roots:
     description: 'The list of golang project roots to check. One path per line'
+    required: false
+  py-roots:
+    description: 'The list of python project roots to check. One path per line'
     required: false
   retention-days:
     description: 'The number of days to keep the artifacts for. Defaults to 0 (inherits the policy from the repository)'
