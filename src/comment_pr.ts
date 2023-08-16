@@ -236,8 +236,8 @@ function formatDiffMap(
     return '👌 No data to report\n'
   }
   let ret = ''
-  for (const [root, diffItem] of Object.entries(diff).sort(([rootA], [rootB]) =>
-    rootA < rootB ? -1 : 1
+  for (const [root, diffItem] of Object.entries(diff).sort(
+    ([rootA], [rootB]) => (rootA < rootB ? -1 : 1)
   )) {
     ret = `${ret}### In \`${formatRoot(root, repoName)}\`\n\n`
     ret = `${ret}${formatDiffSummary(
