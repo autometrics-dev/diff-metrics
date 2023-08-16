@@ -28,5 +28,5 @@ inputs:
     description: 'The version of am to download, skip patch or minor to act as a wildcard. "0.2" means ">=0.2.0 && <0.3.0", "1" means ">=1.0.0 && <2.0.0", etc.'
     required: false
 runs:
-  using: 'node16'
+  using: 'node20'
   main: 'dist/index.js'
