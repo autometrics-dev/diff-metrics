@@ -377,7 +377,7 @@ function formatDiffMap(diff, oldData, newData, repoName) {
         return '👌 No data to report\n';
     }
     let ret = '';
-    for (const [root, diffItem] of Object.entries(diff).sort(([rootA], [rootB]) => rootA < rootB ? -1 : 1)) {
+    for (const [root, diffItem] of Object.entries(diff).sort(([rootA], [rootB]) => (rootA < rootB ? -1 : 1))) {
         ret = `${ret}### In \`${formatRoot(root, repoName)}\`\n\n`;
         ret = `${ret}${formatDiffSummary(diffItem, (_a = oldData[root]) !== null && _a !== void 0 ? _a : { autometricizedFunctions: [], otherFunctions: [] }, (_b = newData[root]) !== null && _b !== void 0 ? _b : { autometricizedFunctions: [], otherFunctions: [] })}\n\n`;
         ret = `${ret}${formatDiffTable(diffItem)}\n\n`;
@@ -25833,7 +25833,7 @@ class Range {
     this.set = this.raw
       .split('||')
       // map the range to a 2d array of comparators
-      .map(r => this.parseRange(r))
+      .map(r => this.parseRange(r.trim()))
       // throw out any comparator lists that are empty
       // this generally means that it was not a valid range, which is allowed
       // in loose mode, but will still throw if the WHOLE range is invalid.
@@ -27305,7 +27305,11 @@ module.exports = parseOptions
 /***/ 9523:
 /***/ ((module, exports, __nccwpck_require__) => {
 
-const { MAX_SAFE_COMPONENT_LENGTH, MAX_SAFE_BUILD_LENGTH } = __nccwpck_require__(2293)
+const {
+  MAX_SAFE_COMPONENT_LENGTH,
+  MAX_SAFE_BUILD_LENGTH,
+  MAX_LENGTH,
+} = __nccwpck_require__(2293)
 const debug = __nccwpck_require__(427)
 exports = module.exports = {}
 
@@ -27326,7 +27330,7 @@ const LETTERDASHNUMBER = '[a-zA-Z0-9-]'
 // all input should have extra whitespace removed.
 const safeRegexReplacements = [
   ['\\s', 1],
-  ['\\d', MAX_SAFE_COMPONENT_LENGTH],
+  ['\\d', MAX_LENGTH],
   [LETTERDASHNUMBER, MAX_SAFE_BUILD_LENGTH],
 ]
 
