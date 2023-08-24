@@ -28,7 +28,7 @@
   "devDependencies": {
     "@octokit/rest": "^20.0.1",
     "@types/decompress": "^4.2.4",
-    "@types/node": "^20.5.0",
+    "@types/node": "^20.5.4",
     "@types/semver": "^7.5.0",
     "@types/tmp": "^0.2.3",
     "@vercel/ncc": "^0.36.1",
