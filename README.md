@@ -127,7 +127,7 @@ In the case of a mono repo that would look like
 The step using diff-metrics would look like this:
 
 ```yaml
-uses: autometrics-dev/diff-metrics@v1
+uses: autometrics-dev/diff-metrics@v2
 with:
   gh-token: ${{ secrets.GITHUB_TOKEN }}
   rs-roots: |
@@ -138,6 +138,8 @@ with:
     project-d
   ts-roots: |
     project-ts
+  py-roots: |
+    project-py
 ```
 
 ###### Language support
