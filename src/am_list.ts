@@ -13,7 +13,6 @@ import * as semver from 'semver'
 // Removing false positive
 // eslint-disable-next-line import/no-unresolved
 import {components} from '@octokit/openapi-types'
-import {difference} from './utils'
 
 const execAsync = promisify(exec)
 
@@ -27,6 +26,27 @@ type Release = components['schemas']['release']
 export type AmFunction = {
   module: string
   function: string
+}
+
+export type AmLocation = {
+  file: string
+  range: AmRange
+}
+
+export type AmRange = {
+  start: AmPosition
+  end: AmPosition
+}
+
+export type AmPosition = {
+  line: number
+  column: number
+}
+
+export type AmListOutputFunction = {
+  id: AmFunction
+  definition?: AmLocation
+  instrumentation?: AmLocation
 }
 
 export type DataSet = {
@@ -136,18 +156,20 @@ export async function computeDataSet(
     `${amList} list -a -l ${language} ${projectRoot}`
   )
 
-  const allFunctions: AmFunction[] = JSON.parse(allFns)
+  const outputFunctions: AmListOutputFunction[] = JSON.parse(allFns)
+  const autometricizedFunctions = []
+  const otherFunctions = []
 
-  const {stdout: amFns} = await execAsync(
-    `${amList} list -l ${language} ${projectRoot}`
-  )
-
-  const amFunctions: AmFunction[] = JSON.parse(amFns)
-
-  const otherFunctions = difference(allFunctions, amFunctions)
+  for (const fn of outputFunctions) {
+    if (fn.instrumentation) {
+      otherFunctions.push({...fn.id})
+    } else {
+      autometricizedFunctions.push({...fn.id})
+    }
+  }
 
   return {
-    autometricizedFunctions: amFunctions,
+    autometricizedFunctions,
     otherFunctions
   }
 }

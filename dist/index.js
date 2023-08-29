@@ -43,7 +43,6 @@ const child_process_1 = __nccwpck_require__(2081);
 const core = __importStar(__nccwpck_require__(2186));
 const util_1 = __nccwpck_require__(3837);
 const semver = __importStar(__nccwpck_require__(1383));
-const utils_1 = __nccwpck_require__(918);
 const execAsync = (0, util_1.promisify)(child_process_1.exec);
 const OWNER = 'autometrics-dev';
 const REPO = 'am_list';
@@ -106,12 +105,19 @@ async function getAmListReleaseId(octokit, versionConstraint) {
 exports.getAmListReleaseId = getAmListReleaseId;
 async function computeDataSet(amList, projectRoot, language) {
     const { stdout: allFns } = await execAsync(`${amList} list -a -l ${language} ${projectRoot}`);
-    const allFunctions = JSON.parse(allFns);
-    const { stdout: amFns } = await execAsync(`${amList} list -l ${language} ${projectRoot}`);
-    const amFunctions = JSON.parse(amFns);
-    const otherFunctions = (0, utils_1.difference)(allFunctions, amFunctions);
+    const outputFunctions = JSON.parse(allFns);
+    const autometricizedFunctions = [];
+    const otherFunctions = [];
+    for (const fn of outputFunctions) {
+        if (fn.instrumentation) {
+            otherFunctions.push({ ...fn.id });
+        }
+        else {
+            autometricizedFunctions.push({ ...fn.id });
+        }
+    }
     return {
-        autometricizedFunctions: amFunctions,
+        autometricizedFunctions,
         otherFunctions
     };
 }
